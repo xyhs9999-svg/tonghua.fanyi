@@ -1,0 +1,6 @@
+node_modules/
+ios/App/build/
+ios/App/Pods/
+ios/App/App.xcworkspace/xcshareddata/
+*.ipa
+.DS_Store
