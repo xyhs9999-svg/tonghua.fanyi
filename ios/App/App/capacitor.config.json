@@ -1,0 +1,8 @@
+{
+	"appId": "com.zhongyue.tonghua.fanyi",
+	"appName": "中越通话翻译",
+	"webDir": "www",
+	"packageClassList": [
+		"SpeechRecognition"
+	]
+}
