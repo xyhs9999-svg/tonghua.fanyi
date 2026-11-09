@@ -168,7 +168,8 @@
       /* ================= start screen (lobby) ================= */
       .lobby{
         position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;
-        align-items:center;justify-content:center;text-align:center;padding:28px 22px;
+        align-items:center;justify-content:safe center;text-align:center;padding:28px 22px;
+        overflow-y:auto;overscroll-behavior:contain;
         background:
           radial-gradient(120% 70% at 50% 0%, #2a3f3a 0%, rgba(42,63,58,0) 55%),
           radial-gradient(ellipse at 50% 42%, #22332f 0%, #0a0f0e 80%);
@@ -214,6 +215,58 @@
       .join-panel .big-btn{margin-top:14px;background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
       .join-panel .big-btn:hover{background:#0a5f55}
       .join-err{min-height:20px;margin-top:10px;font-size:13px;font-weight:700;color:#ff9a8f}
+      /* ================= friends ================= */
+      .friends{width:100%;max-width:340px;margin-top:22px;text-align:left}
+      .friends-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+      .friends-head .fh-label{font-size:12.5px;font-weight:700;color:#b9cdc8;letter-spacing:.4px}
+      .add-friend-btn{
+        appearance:none;cursor:pointer;font-family:inherit;flex:none;
+        background:rgba(11,110,99,.9);color:#fff;border:1px solid rgba(143,227,200,.5);
+        border-radius:999px;padding:8px 15px;font-size:13.5px;font-weight:800;
+      }
+      .add-friend-btn:active{transform:scale(.97)}
+      .friend-empty{font-size:12.5px;color:rgba(185,205,200,.78);line-height:1.65;margin-top:9px}
+      .friend-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:208px;overflow-y:auto;scrollbar-width:none}
+      .friend-list::-webkit-scrollbar{display:none}
+      .friend-row{
+        display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
+        background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.22);
+        border-radius:14px;padding:10px 12px;color:#fff;transition:background .15s;
+      }
+      .friend-row:active{background:rgba(255,255,255,.2)}
+      .friend-avatar{
+        width:40px;height:40px;flex:none;border-radius:50%;background:#0b6e63;color:#fff;
+        display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;
+      }
+      .friend-main{flex:1;min-width:0}
+      .friend-name{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .friend-sub{font-size:11.5px;font-weight:600;color:#b9cdc8;margin-top:1px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .friend-act{
+        appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
+        width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
+        font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0;
+      }
+      .friend-act:active{transform:scale(.92)}
+      .friend-act.del{background:rgba(226,58,46,.28);font-size:15px}
+      .friend-panel{width:100%;max-width:340px;margin-top:26px;text-align:left}
+      .friend-panel .fp-label{font-size:13px;font-weight:700;color:#b9cdc8;letter-spacing:.5px}
+      .fp-input{
+        width:100%;margin-top:9px;padding:14px 12px;font-family:inherit;
+        font-size:17px;font-weight:700;color:#fff;
+        background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.4);border-radius:14px;outline:none;
+      }
+      .fp-input:focus{border-color:#8fe3c8;background:rgba(255,255,255,.14)}
+      .fp-input::placeholder{color:rgba(255,255,255,.35)}
+      .fp-code-row{display:flex;gap:9px;margin-top:9px}
+      .fp-code-row .fp-input{margin-top:0;text-align:center;font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase}
+      .fp-dice{
+        appearance:none;cursor:pointer;font-family:inherit;flex:none;padding:0 14px;
+        border-radius:14px;background:rgba(255,255,255,.12);color:#fff;
+        border:1.5px solid rgba(255,255,255,.35);font-size:12.5px;font-weight:800;line-height:1.4;
+      }
+      .fp-note{font-size:12px;color:rgba(185,205,200,.82);line-height:1.65;margin-top:10px}
+      .friend-panel .big-btn{margin-top:14px;background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
+      .friend-panel .big-btn:hover{background:#0a5f55}
       .lobby .ver-tag{margin-top:28px;font-size:12px;font-weight:700;color:rgba(185,205,200,.8);letter-spacing:.6px;line-height:1.7}
       .back-link{
         appearance:none;background:none;border:none;cursor:pointer;font-family:inherit;
@@ -297,6 +350,69 @@
       #mediaRetryBtn:hover{background:#0a5f55}
       #mediaRetryBtn:active{transform:scale(.98)}
       #mediaRetryBtn .cb2{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:2px}
+      /* ================= friend choice + text chat (v12) ================= */
+      .choice-panel{width:100%;max-width:340px;margin-top:26px;text-align:center}
+      .choice-panel .cp-name{font-size:21px;font-weight:900}
+      .choice-panel .cp-sub{font-size:12.5px;font-weight:600;color:#b9cdc8;margin-top:4px}
+      .choice-panel .big-btn{margin-top:12px}
+      .big-btn.chat{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
+      .big-btn.chat:hover{background:rgba(255,255,255,.18)}
+      .chat-screen{
+        position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
+        background:
+          radial-gradient(120% 60% at 50% 0%, #243832 0%, rgba(36,56,50,0) 55%),
+          #0d1513;
+      }
+      .chat-screen.hidden{display:none}
+      .chat-head{
+        flex:none;display:flex;align-items:center;gap:10px;
+        padding:calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px;
+        background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+        border-bottom:1px solid rgba(255,255,255,.12);
+      }
+      .chat-back{
+        appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
+        width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
+        font-size:19px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0;
+      }
+      .chat-title{flex:1;min-width:0;text-align:left}
+      .chat-name{font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .chat-state{font-size:11.5px;font-weight:600;color:#b9cdc8;margin-top:1px}
+      .chat-state .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9aa7a3;margin-right:5px;vertical-align:1px}
+      .chat-state .dot.on{background:var(--green)}
+      .chat-state .dot.wait{background:var(--amber)}
+      .chat-messages{
+        flex:1;overflow-y:auto;overscroll-behavior:contain;
+        display:flex;flex-direction:column;gap:10px;padding:16px 14px 10px;
+      }
+      .chat-msg{max-width:84%;padding:10px 14px 11px;border-radius:16px;background:var(--bubble-bg);color:var(--bubble-ink);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+      .chat-msg.me{align-self:flex-end;border-bottom-right-radius:6px;background:#cdeee0}
+      .chat-msg.peer{align-self:flex-start;border-bottom-left-radius:6px}
+      .chat-msg .orig{font-size:16px;font-weight:700;line-height:1.45;word-break:break-word}
+      .chat-msg .trans{font-size:15px;line-height:1.5;word-break:break-word;color:var(--bubble-sub);margin-top:5px;padding-top:5px;border-top:1px solid rgba(23,32,29,.12)}
+      .chat-msg .trans.pending-txt{border-top:none;margin-top:2px;padding-top:0;font-size:13px}
+      .chat-msg .meta{font-size:11px;font-weight:600;color:var(--bubble-sub);margin-top:6px;opacity:.85}
+      .chat-msg .meta.fail{color:#b3261c;font-weight:800}
+      .chat-empty{margin:auto;text-align:center;font-size:13.5px;color:#b9cdc8;line-height:1.7;max-width:280px;padding:20px}
+      .chat-composer{
+        flex:none;display:flex;gap:9px;align-items:flex-end;
+        padding:10px 12px calc(env(safe-area-inset-bottom, 0px) + 14px);
+        background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+        border-top:1px solid rgba(255,255,255,.12);
+      }
+      #chatInput{
+        flex:1;min-width:0;padding:13px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#fff;
+        background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.35);border-radius:16px;outline:none;resize:none;
+        max-height:110px;line-height:1.45;
+      }
+      #chatInput:focus{border-color:#8fe3c8}
+      #chatInput::placeholder{color:rgba(255,255,255,.4)}
+      #chatSendBtn{
+        appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
+        background:#0b6e63;color:#fff;border-radius:16px;padding:14px 20px;font-size:16.5px;font-weight:800;
+      }
+      #chatSendBtn:active{transform:scale(.97)}
+      #chatSendBtn:disabled{opacity:.55}
     </style>
   </head>
   <body>
@@ -361,6 +477,14 @@
             <button class="lc-btn" id="lobbyLangVi" type="button">Tiếng Việt<span class="lc-sub">Tôi nói tiếng Việt</span></button>
           </div>
         </div>
+        <div class="friends" id="friendsBox">
+          <div class="friends-head">
+            <div class="fh-label">好友 · Bạn bè</div>
+            <button class="add-friend-btn" id="addFriendBtn" type="button">＋ 添加好友</button>
+          </div>
+          <div class="friend-empty" id="friendEmpty">还没有好友。添加好友后，把房间号发给对方一次；以后点好友名字就直接通话，不用扫码、不用输房间号。<br/>Chưa có bạn bè. Sau khi thêm, gửi mã phòng cho đối phương một lần; từ sau chỉ cần bấm vào tên là gọi ngay.</div>
+          <div class="friend-list" id="friendList"></div>
+        </div>
         <div class="lobby-actions" id="lobbyActions">
           <button class="big-btn create" id="createBtn" type="button">
             <span class="b1">创建房间</span>
@@ -380,7 +504,35 @@
           <div class="join-err" id="joinErr"></div>
           <button class="back-link" id="joinBackBtn" type="button">← 返回 · Quay lại</button>
         </div>
-        <div class="ver-tag">版本号 v10 · Phiên bản v10<br/>双方版本号要一致 · Cả hai máy phải cùng phiên bản</div>
+        <div class="friend-panel hidden" id="friendPanel">
+          <div class="fp-label">好友名字 · Tên bạn bè</div>
+          <input class="fp-input" id="friendNameInput" type="text" maxlength="20" autocomplete="off" placeholder="比如：阿明 · Ví dụ: Minh" aria-label="好友名字 · Tên bạn bè" />
+          <div class="fp-label" style="margin-top:16px">固定房间号 · Mã phòng cố định</div>
+          <div class="fp-code-row">
+            <input class="fp-input" id="friendCodeInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="ABC123" aria-label="房间号 · Mã phòng" />
+            <button class="fp-dice" id="friendDiceBtn" type="button">随机生成<br/>Tạo ngẫu nhiên</button>
+          </div>
+          <div class="fp-note">上面已经自动生成了一个新房间号：保存后把这个号发给对方一次，对方在他那边的「添加好友」里填上这个号，你们就互相加好了。如果对方已经给了你一个房间号，就把上面的号改成对方的。<br/>Một mã phòng mới đã được tạo sẵn ở trên: lưu xong hãy gửi mã này cho đối phương một lần, họ nhập mã đó trong «Thêm bạn bè» bên máy họ là xong. Nếu đối phương đã đưa mã phòng cho bạn, hãy sửa mã ở trên thành mã của họ.</div>
+          <button class="big-btn" id="friendSaveBtn" type="button">
+            <span class="b1">保存 · Lưu</span>
+          </button>
+          <div class="join-err" id="friendErr"></div>
+          <button class="back-link" id="friendBackBtn" type="button">← 返回 · Quay lại</button>
+        </div>
+        <div class="choice-panel hidden" id="friendChoicePanel">
+          <div class="cp-name" id="choiceFriendName">好友</div>
+          <div class="cp-sub">选一种联系方式 · Chọn cách liên lạc</div>
+          <button class="big-btn create" id="choiceCallBtn" type="button">
+            <span class="b1">📞 语音通话</span>
+            <span class="b2">Gọi thoại / video</span>
+          </button>
+          <button class="big-btn chat" id="choiceChatBtn" type="button">
+            <span class="b1">💬 打字聊天</span>
+            <span class="b2">Nhắn tin · 自动翻译</span>
+          </button>
+          <button class="back-link" id="choiceBackBtn" type="button">← 返回 · Quay lại</button>
+        </div>
+        <div class="ver-tag">版本号 v12 · Phiên bản v12<br/>双方版本号要一致 · Cả hai máy phải cùng phiên bản</div>
       </div>
 
       <div class="ended hidden" id="endedOverlay">
@@ -404,6 +556,22 @@
         </div>
       </div>
     </div>
+
+      <!-- text chat with a friend: auto-translated, via PeerJS data channel -->
+      <div class="chat-screen hidden" id="chatScreen">
+        <div class="chat-head">
+          <button class="chat-back" id="chatBackBtn" type="button" aria-label="返回 · Quay lại">←</button>
+          <div class="chat-title">
+            <div class="chat-name" id="chatFriendName">好友</div>
+            <div class="chat-state" id="chatState"><span class="dot wait"></span>正在连接… · Đang kết nối…</div>
+          </div>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-composer">
+          <textarea id="chatInput" rows="1" maxlength="500" placeholder="打字发消息，自动翻译 · Nhập tin nhắn, dịch tự động" aria-label="消息输入 · Nhập tin nhắn"></textarea>
+          <button id="chatSendBtn" type="button">发送<br/><span style="font-size:11.5px;font-weight:600;opacity:.85">Gửi</span></button>
+        </div>
+      </div>
 
     <div class="toast" id="toast"></div>
 
@@ -829,115 +997,6 @@
              silent cycle try the other language.
            ================================================================ */
         var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        /* ---------- native speech recognition (installed App) ----------
-           Inside the installed App this page runs in a WKWebView, where
-           webkitSpeechRecognition does not exist at all. The App therefore
-           ships the native @capacitor-community/speech-recognition plugin
-           (iOS SFSpeechRecognizer). When the Capacitor bridge is present
-           we use it; in a normal browser this block stays dormant and the
-           page keeps using webkitSpeechRecognition exactly as before.
-           NativeRecognizer below speaks the same language as the cycle
-           code: it looks like a web SpeechRecognition object (lang,
-           interimResults, continuous, start(), abort(), onresult,
-           onerror, onend) and translates plugin events into the
-           ev.results shape the cycle already handles. */
-        var CAP_SR = null;
-        try {
-          if (window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform()){
-            // registerPlugin with no web implementation: the injected
-            // Capacitor runtime proxies calls straight to the native
-            // plugin (PluginHeaders lists it, see CAP_PLUGIN in the
-            // plugin's Plugin.m).
-            CAP_SR = window.Capacitor.registerPlugin("SpeechRecognition");
-          }
-        } catch(e){ CAP_SR = null; }
-        var nativeSRBroken = false; // plugin answered "not implemented": fall back to the browser recogniser
-        function makeSRResult(text, isFinal){
-          return { isFinal: !!isFinal, 0: { transcript: text }, length: 1 };
-        }
-        function NativeRecognizer(){
-          this.lang = "zh-CN";
-          this.interimResults = true;
-          this.continuous = false;
-          this.onresult = null; this.onerror = null; this.onend = null;
-          this._ended = false;
-          this._partialHandle = null; this._stateHandle = null;
-        }
-        NativeRecognizer.prototype._isCurrent = function(){
-          return typeof recognition !== "undefined" && recognition === this;
-        };
-        NativeRecognizer.prototype._removeListeners = function(){
-          var self = this;
-          try { if (self._partialHandle && self._partialHandle.remove) self._partialHandle.remove(); } catch(e){}
-          try { if (self._stateHandle && self._stateHandle.remove) self._stateHandle.remove(); } catch(e){}
-          self._partialHandle = null; self._stateHandle = null;
-        };
-        NativeRecognizer.prototype._finish = function(){
-          if (this._ended) return;
-          this._ended = true;
-          this._removeListeners();
-          // Only the live recogniser may end the cycle: a stale abort
-          // timer from an earlier session must not null out a newer one.
-          if (!this._isCurrent()) return;
-          if (this.onend) this.onend();
-        };
-        NativeRecognizer.prototype._fail = function(code){
-          if (this._ended) return;
-          this._ended = true;
-          this._removeListeners();
-          if (!this._isCurrent()) return;
-          if (this.onerror) this.onerror({ error: code });
-          if (this.onend) this.onend();
-        };
-        NativeRecognizer.prototype.start = function(){
-          var self = this;
-          this._ended = false;
-          var partialP = CAP_SR.addListener("partialResults", function(data){
-            var t = (data && data.matches && data.matches[0]) || "";
-            if (self._ended || !t) return;
-            // Every partial is an interim result; the cycle's onend flush
-            // sends the last one as the sentence when the session stops.
-            if (self.onresult) self.onresult({ results: [makeSRResult(t, false)] });
-          });
-          var stateP = CAP_SR.addListener("listeningState", function(data){
-            if (data && data.status === "stopped") self._finish();
-          });
-          Promise.all([partialP, stateP]).then(function(handles){
-            self._partialHandle = handles[0]; self._stateHandle = handles[1];
-            return CAP_SR.checkPermissions();
-          }).then(function(perm){
-            if (perm && perm.speechRecognition === "granted") return;
-            if (perm && perm.speechRecognition === "denied") throw { code: "not-allowed" };
-            return CAP_SR.requestPermissions().then(function(p2){
-              if (!p2 || p2.speechRecognition !== "granted") throw { code: "not-allowed" };
-            });
-          }).then(function(){
-            return CAP_SR.start({ language: self.lang, maxResults: 1, partialResults: true });
-          }).catch(function(err){
-            var msg = (err && err.message) || "";
-            if ((err && err.code === "not-allowed") || /permission|denied|microphone/i.test(msg)) self._fail("not-allowed");
-            else if (/not implemented/i.test(msg)){ nativeSRBroken = true; self._fail("aborted"); }
-            else self._fail("aborted");
-          });
-        };
-        NativeRecognizer.prototype.abort = function(){
-          if (this._ended) return;
-          // stop() ends the audio: the plugin then reports the final
-          // transcript and a 'stopped' state, which finishes the cycle
-          // (the onend flush sends any un-promoted interim text).
-          var self = this;
-          try {
-            var r = CAP_SR.stop();
-            if (r && r.catch) r.catch(function(){ self._finish(); });
-          } catch(e){ this._finish(); }
-          // safety: if no 'stopped' event arrives, end the cycle anyway
-          setTimeout(function(){ self._finish(); }, 1500);
-        };
-        function createRecognizer(){
-          if (CAP_SR && !nativeSRBroken) return new NativeRecognizer();
-          if (SR) return new SR();
-          return null;
-        }
         /* iOS Safari's recogniser (the partner's iPhone) streams interim
            results for Vietnamese but often never marks them final — and
            with continuous=true a session can hang that way indefinitely.
@@ -956,7 +1015,7 @@
         }
         function startRecCycle(){
           if (!listenOn) return;
-          if (!SR && !CAP_SR){
+          if (!SR){
             setStatus("Trình duyệt này không hỗ trợ nhận dạng giọng nói · 本机浏览器不支持语音识别", true);
             listenOn = false; setMicUI();
             return;
@@ -965,8 +1024,7 @@
           recStarting = true;
           cycleGotFinal = false; cycleError = "";
           var rec;
-          try { rec = createRecognizer(); } catch(e){ recStarting = false; scheduleRestart(800); return; }
-          if (!rec){ recStarting = false; scheduleRestart(800); return; }
+          try { rec = new SR(); } catch(e){ recStarting = false; scheduleRestart(800); return; }
           recognition = rec;
           rec.lang = recLang === "zh" ? "zh-CN" : "vi-VN";
           rec.interimResults = true;
@@ -1169,10 +1227,25 @@
             showMediaError();
             return Promise.resolve(null);
           }
-          return navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+          // v12 smoothness fix: 480p / ~20fps capture. The previous
+          // unconstrained request let phones pick 720p/1080p, which
+          // overloaded both the handset encoder and the WiFi link and
+          // made the picture stutter even on a local network.
+          return navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 640, max: 640 },
+                height: { ideal: 480, max: 480 },
+                frameRate: { ideal: 20, max: 24 }
+              },
+              audio: true
+            })
             .then(function(stream){
               localStream = stream;
               localVideo.srcObject = stream;
+              var vt = stream.getVideoTracks()[0];
+              if (vt && vt.applyConstraints){
+                vt.applyConstraints({ width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 20, max: 24 } }).catch(function(){});
+              }
               if (!listenOn) stream.getAudioTracks().forEach(function(t){ t.enabled = false; });
               if (isHost){
                 $("stageT1").textContent = "等待对方加入…";
@@ -1253,12 +1326,35 @@
             if (connAttempt === c) connAttemptDead = true;
           });
         }
+        /* Cap the OUTGOING video bitrate/framerate on the actual
+           RTCPeerConnection once a call exists: capture constraints alone
+           don't stop the encoder from pushing a high bitrate. ~550 kbps
+           is plenty for 480p and keeps both phones and the network light. */
+        function limitSenderBitrate(call){
+          try {
+            var pc = call && call.peerConnection;
+            if (!pc || !pc.getSenders) return;
+            pc.getSenders().forEach(function(sender){
+              if (!sender.track || sender.track.kind !== "video") return;
+              try {
+                var params = sender.getParameters() || {};
+                if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+                params.encodings[0].maxBitrate = 550000;
+                params.encodings[0].maxFramerate = 20;
+                var p = sender.setParameters(params);
+                if (p && p.catch) p.catch(function(){});
+              } catch(e){}
+            });
+          } catch(e){}
+        }
         function wireCall(call){
           mediaCall = call;
           call.on("stream", function(remoteStream){
             remoteVideo.srcObject = remoteStream;
             $("stageNote").classList.add("hidden");
             setConn("on");
+            limitSenderBitrate(call);
+            setTimeout(function(){ limitSenderBitrate(call); }, 1200);
           });
           call.on("close", function(){
             remoteVideo.srcObject = null;
@@ -1410,6 +1506,8 @@
         });
         $("joinBtn").addEventListener("click", function(){
           $("lobbyActions").classList.add("hidden");
+          $("friendPanel").classList.add("hidden");
+          $("friendChoicePanel").classList.add("hidden");
           $("joinPanel").classList.remove("hidden");
           $("joinErr").textContent = "";
           setTimeout(function(){ try { $("roomInput").focus(); } catch(e){} }, 60);
@@ -1463,6 +1561,460 @@
           $("joinPanel").classList.remove("hidden");
         }
         // otherwise the start screen stays up until 创建房间 / 加入房间 is tapped
+
+        /* ---------- friends: one fixed room code per friend ----------
+           Stored on this phone only (localStorage), so the list survives
+           refresh / reopen. Each friend entry owns one permanent 6-char
+           room code:
+           - host:true  — this phone generated the code; tapping the friend
+             opens that room as host and waits, exactly like 创建房间.
+           - host:false — the code came from the partner; tapping joins
+             their room as guest, exactly like 加入房间.
+           Either way it is one tap on the name: no QR scan, no typing.
+           The code only has to be shared once, when the friend is added;
+           the copy button on each row is for that first share. */
+        var FRIENDS_KEY = "zhyuetong-friends-v1";
+        function loadFriends(){
+          try {
+            var raw = window.localStorage ? window.localStorage.getItem(FRIENDS_KEY) : null;
+            var arr = raw ? JSON.parse(raw) : [];
+            if (!arr || Object.prototype.toString.call(arr) !== "[object Array]") return [];
+            var out = [];
+            for (var i = 0; i < arr.length; i++){
+              var f = arr[i];
+              if (!f || !f.name) continue;
+              var code = String(f.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+              if (code.length !== 6) continue;
+              out.push({ name: String(f.name), code: code, host: !!f.host });
+            }
+            return out;
+          } catch(e){ return []; }
+        }
+        function persistFriends(){
+          try {
+            if (window.localStorage) window.localStorage.setItem(FRIENDS_KEY, JSON.stringify(friends));
+          } catch(e){}
+        }
+        var friends = loadFriends();
+        function renderFriends(){
+          var list = $("friendList");
+          if (!list) return;
+          list.innerHTML = "";
+          $("friendEmpty").style.display = friends.length ? "none" : "";
+          friends.forEach(function(f, idx){
+            var row = document.createElement("div");
+            row.className = "friend-row";
+            row.setAttribute("role", "button");
+            row.setAttribute("tabindex", "0");
+            var av = document.createElement("div");
+            av.className = "friend-avatar";
+            av.textContent = f.name.slice(0, 1) || "?";
+            var main = document.createElement("div");
+            main.className = "friend-main";
+            var nm = document.createElement("div");
+            nm.className = "friend-name"; nm.textContent = f.name;
+            var sub = document.createElement("div");
+            sub.className = "friend-sub";
+            sub.textContent = "房间号 " + f.code + " · 点一下选通话或聊天 · Bấm để chọn gọi hoặc nhắn tin";
+            main.appendChild(nm); main.appendChild(sub);
+            var copyBtn = document.createElement("button");
+            copyBtn.className = "friend-act"; copyBtn.type = "button";
+            copyBtn.title = "复制房间号 · Sao chép mã phòng";
+            copyBtn.setAttribute("aria-label", "复制房间号 · Sao chép mã phòng");
+            copyBtn.textContent = "⧉";
+            copyBtn.addEventListener("click", function(ev){
+              ev.stopPropagation();
+              copyText(f.code, "已复制房间号 " + f.code + "，发给对方一次就行 · Đã sao chép mã phòng");
+            });
+            var delBtn = document.createElement("button");
+            delBtn.className = "friend-act del"; delBtn.type = "button";
+            delBtn.title = "删除好友 · Xóa bạn bè";
+            delBtn.setAttribute("aria-label", "删除好友 · Xóa bạn bè");
+            delBtn.textContent = "✕";
+            delBtn.addEventListener("click", function(ev){
+              ev.stopPropagation();
+              destroyChatPeer(f.code);
+              friends.splice(idx, 1);
+              persistFriends();
+              renderFriends();
+              toast("已删除好友 · Đã xóa bạn bè");
+            });
+            row.appendChild(av); row.appendChild(main); row.appendChild(copyBtn); row.appendChild(delBtn);
+            function dial(){ openFriendChoice(f); }
+            row.addEventListener("click", dial);
+            row.addEventListener("keydown", function(ev){
+              if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); dial(); }
+            });
+            list.appendChild(row);
+          });
+        }
+        renderFriends();
+
+        /* add-friend panel: the code field decides the role. While the
+           field still holds the auto-generated code (or a dice re-roll),
+           this phone is the room's host; if the user types over it with a
+           code the partner gave them, this phone joins as guest. */
+        var friendGenMode = true;
+        function cleanFriendCode(){
+          return $("friendCodeInput").value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+        }
+        $("addFriendBtn").addEventListener("click", function(){
+          $("lobbyActions").classList.add("hidden");
+          $("joinPanel").classList.add("hidden");
+          $("friendChoicePanel").classList.add("hidden");
+          $("friendPanel").classList.remove("hidden");
+          $("friendErr").textContent = "";
+          $("friendNameInput").value = "";
+          friendGenMode = true;
+          $("friendCodeInput").value = genCode();
+          setTimeout(function(){ try { $("friendNameInput").focus(); } catch(e){} }, 60);
+        });
+        $("friendBackBtn").addEventListener("click", function(){
+          $("friendPanel").classList.add("hidden");
+          $("lobbyActions").classList.remove("hidden");
+        });
+        $("friendDiceBtn").addEventListener("click", function(){
+          friendGenMode = true;
+          $("friendCodeInput").value = genCode();
+          $("friendErr").textContent = "";
+        });
+        $("friendCodeInput").addEventListener("input", function(){
+          var v = cleanFriendCode();
+          if ($("friendCodeInput").value !== v) $("friendCodeInput").value = v;
+          // typing a code of their own means it is the partner's room
+          friendGenMode = false;
+          if (v.length === 6) $("friendErr").textContent = "";
+        });
+        $("friendSaveBtn").addEventListener("click", function(){
+          var name = $("friendNameInput").value.replace(/^\s+|\s+$/g, "");
+          if (!name){
+            $("friendErr").textContent = "先填好友名字 · Hãy nhập tên bạn bè";
+            return;
+          }
+          var code = cleanFriendCode();
+          var host = friendGenMode;
+          if (!code){ code = genCode(); host = true; }
+          if (code.length !== 6){
+            $("friendErr").textContent = "房间号是 6 位，请检查 · Mã phòng gồm 6 ký tự";
+            return;
+          }
+          // one entry per room code: re-adding a code updates that friend
+          var existing = -1;
+          for (var i = 0; i < friends.length; i++){ if (friends[i].code === code){ existing = i; break; } }
+          var entry = { name: name, code: code, host: host };
+          if (existing >= 0) friends[existing] = entry; else friends.push(entry);
+          persistFriends();
+          ensureChatPeer(entry);
+          renderFriends();
+          $("friendPanel").classList.add("hidden");
+          $("lobbyActions").classList.remove("hidden");
+          toast(host
+            ? "已保存 · 把房间号 " + code + " 发给对方一次 · Đã lưu, gửi mã phòng cho đối phương một lần"
+            : "已保存 · 点名字就能通话 · Đã lưu, bấm vào tên để gọi");
+        });
+
+        /* ---------- friend choice: 语音通话 / 打字聊天 ---------- */
+        var choiceFriend = null;
+        function openFriendChoice(f){
+          choiceFriend = f;
+          $("choiceFriendName").textContent = f.name;
+          $("lobbyActions").classList.add("hidden");
+          $("joinPanel").classList.add("hidden");
+          $("friendPanel").classList.add("hidden");
+          $("friendChoicePanel").classList.remove("hidden");
+        }
+        $("choiceBackBtn").addEventListener("click", function(){
+          $("friendChoicePanel").classList.add("hidden");
+          $("lobbyActions").classList.remove("hidden");
+        });
+        $("choiceCallBtn").addEventListener("click", function(){
+          if (!choiceFriend) return;
+          $("friendChoicePanel").classList.add("hidden");
+          $("lobbyActions").classList.remove("hidden");
+          startRoom(choiceFriend.code, !!choiceFriend.host);
+        });
+        $("choiceChatBtn").addEventListener("click", function(){
+          if (!choiceFriend) return;
+          openChat(choiceFriend);
+        });
+
+        /* ================================================================
+           TEXT CHAT with a friend (v12) — typed messages, auto-translated.
+           - Transport: PeerJS data channel only (there is no server), so
+             BOTH phones must have the app open for a message to arrive.
+           - IDs are derived from the friend's fixed room code, in a
+             separate namespace from the call IDs so chat and call peers
+             never collide: the room host listens on "<code>-host" and
+             dials "<code>-guest"; the guest listens on "<code>-guest"
+             and dials "<code>-host". A background listener peer is
+             created for every friend as soon as the app opens.
+           - The SENDER translates first (same Gemini endpoint chain as
+             the call) and sends { orig, trans } together, so the receiver
+             shows 原文 + 译文 at once. If the sender's translation failed,
+             the receiver translates the original on its own phone.
+           - History is kept on this phone only, in localStorage, one
+             list per friend code.
+           ================================================================ */
+        var CHAT_PREFIX = "zhyuetong-chat-v1-";
+        var CHAT_HIST_PREFIX = "zhyuetong-chat-hist-v1-";
+        var chatPeers = {};   // code -> { friend, peer, conn, connecting, failConnect }
+        var chatFriend = null; // friend whose chat screen is open
+
+        function myChatId(f){ return CHAT_PREFIX + f.code + (f.host ? "-host" : "-guest"); }
+        function peerChatId(f){ return CHAT_PREFIX + f.code + (f.host ? "-guest" : "-host"); }
+
+        function loadChatHistory(code){
+          try {
+            var raw = window.localStorage ? window.localStorage.getItem(CHAT_HIST_PREFIX + code) : null;
+            var arr = raw ? JSON.parse(raw) : [];
+            return Object.prototype.toString.call(arr) === "[object Array]" ? arr : [];
+          } catch(e){ return []; }
+        }
+        function appendChatHistory(code, entry){
+          try {
+            var arr = loadChatHistory(code);
+            arr.push(entry);
+            if (arr.length > 300) arr = arr.slice(arr.length - 300);
+            if (window.localStorage) window.localStorage.setItem(CHAT_HIST_PREFIX + code, JSON.stringify(arr));
+          } catch(e){}
+        }
+
+        function setChatState(mode){
+          var el = $("chatState");
+          if (!el) return;
+          var dot = mode === "on" ? "on" : mode === "wait" ? "wait" : "";
+          var txt = mode === "on" ? "对方在线 · Đối phương đang trực tuyến"
+            : mode === "off" ? "对方不在线 · Đối phương không trực tuyến（没打开 App）"
+            : "正在连接… · Đang kết nối…";
+          el.innerHTML = "";
+          var d = document.createElement("span"); d.className = "dot " + dot;
+          el.appendChild(d); el.appendChild(document.createTextNode(txt));
+        }
+        function fmtTime(ts){
+          try {
+            var d = new Date(ts || Date.now());
+            var h = d.getHours(), m = d.getMinutes();
+            return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+          } catch(e){ return ""; }
+        }
+        function appendChatMsgEl(entry){
+          var box = $("chatMessages");
+          var empty = box.querySelector(".chat-empty");
+          if (empty) empty.parentNode.removeChild(empty);
+          var div = document.createElement("div");
+          div.className = "chat-msg " + (entry.dir === "me" ? "me" : "peer");
+          var o = document.createElement("div");
+          o.className = "orig"; o.textContent = entry.orig || "";
+          var t = document.createElement("div");
+          t.className = "trans" + (entry.pending ? " pending-txt" : "");
+          t.textContent = entry.pending ? "Đang dịch… / 正在翻译…"
+            : entry.trans ? entry.trans
+            : entry.transFail ? "Dịch thất bại · 翻译失败（上面是原话）" : "";
+          var meta = document.createElement("div");
+          meta.className = "meta" + (entry.failed ? " fail" : "");
+          meta.textContent = fmtTime(entry.ts) + (entry.failed ? " · 对方不在线，未送达 · Không gửi được" : "");
+          div.appendChild(o); div.appendChild(t); div.appendChild(meta);
+          box.appendChild(div);
+          box.scrollTop = box.scrollHeight;
+          return { root: div, transEl: t, metaEl: meta };
+        }
+        function renderChatHistory(){
+          var box = $("chatMessages");
+          box.innerHTML = "";
+          if (!chatFriend) return;
+          var arr = loadChatHistory(chatFriend.code);
+          if (!arr.length){
+            var e = document.createElement("div");
+            e.className = "chat-empty";
+            e.textContent = "还没有消息。打中文发过去，对方看到的是中文原文 + 越南文翻译；对方回越南文，你这边看到原文 + 中文翻译。对方要打开 App 才能收到。";
+            box.appendChild(e);
+            return;
+          }
+          arr.forEach(function(entry){ appendChatMsgEl(entry); });
+          box.scrollTop = box.scrollHeight;
+        }
+
+        function markChatOffline(f){
+          var st = chatPeers[f.code];
+          if (st && st.failConnect) st.failConnect();
+          if (chatFriend && chatFriend.code === f.code) setChatState("off");
+        }
+        function wireChatConn(f, c){
+          var st = chatPeers[f.code];
+          if (!st) return;
+          c.on("open", function(){
+            var prev = st.conn;
+            st.conn = c;
+            if (prev && prev !== c){ try { prev.close(); } catch(e){} }
+            if (chatFriend && chatFriend.code === f.code) setChatState("on");
+          });
+          c.on("data", function(data){
+            if (data && data.type === "chat-msg") receiveChatMsg(f, data);
+          });
+          c.on("close", function(){
+            if (st.conn === c) st.conn = null;
+            if (chatFriend && chatFriend.code === f.code) setChatState("wait");
+          });
+          c.on("error", function(){});
+        }
+        function ensureChatPeer(f){
+          if (typeof Peer === "undefined") return null;
+          var st = chatPeers[f.code];
+          if (st && st.peer && !st.peer.destroyed) return st;
+          st = { friend: f, peer: null, conn: null, connecting: null, failConnect: null };
+          chatPeers[f.code] = st;
+          var p;
+          try { p = new Peer(myChatId(f), { debug: 0 }); } catch(e){ return st; }
+          st.peer = p;
+          p.on("connection", function(c){ wireChatConn(f, c); });
+          p.on("error", function(err){
+            if (err && err.type === "peer-unavailable") markChatOffline(f);
+          });
+          p.on("disconnected", function(){ try { p.reconnect(); } catch(e){} });
+          return st;
+        }
+        function destroyChatPeer(code){
+          var st = chatPeers[code];
+          if (!st) return;
+          try { if (st.conn) st.conn.close(); } catch(e){}
+          try { if (st.peer) st.peer.destroy(); } catch(e){}
+          delete chatPeers[code];
+        }
+        function connectChat(f){
+          var st = ensureChatPeer(f);
+          if (!st || !st.peer) return Promise.resolve(null);
+          if (st.conn && st.conn.open) return Promise.resolve(st.conn);
+          if (st.connecting) return st.connecting;
+          st.connecting = new Promise(function(resolve){
+            var done = false;
+            function finish(v){
+              if (done) return; done = true;
+              st.connecting = null; st.failConnect = null;
+              resolve(v);
+            }
+            st.failConnect = function(){ finish(null); };
+            var c;
+            try { c = st.peer.connect(peerChatId(f), { reliable: true }); }
+            catch(e){ finish(null); return; }
+            wireChatConn(f, c);
+            c.on("open", function(){ finish(c); });
+            setTimeout(function(){ finish(st.conn && st.conn.open ? st.conn : null); }, 7000);
+          });
+          return st.connecting;
+        }
+        function receiveChatMsg(f, data){
+          var from = data.from === "vi" ? "vi" : "zh";
+          var entry = {
+            dir: "peer", orig: data.orig || "", trans: data.trans || "",
+            from: from, ts: data.ts || Date.now(), id: data.id, sess: data.sess || ""
+          };
+          var hist = loadChatHistory(f.code);
+          for (var i = 0; i < hist.length; i++){
+            if (hist[i].id === entry.id && hist[i].sess === entry.sess && entry.id !== undefined) return; // duplicate
+          }
+          function store(){
+            appendChatHistory(f.code, entry);
+            if (chatFriend && chatFriend.code === f.code){
+              appendChatMsgEl(entry);
+              setChatState("on");
+            } else {
+              toast("💬 " + f.name + "：" + (entry.orig || "").slice(0, 20));
+            }
+          }
+          if (entry.trans){ store(); return; }
+          // Sender's translation failed: translate the original here.
+          translateText(entry.orig, from, from === "zh" ? "vi" : "zh")
+            .then(function(trans){ entry.trans = trans; store(); })
+            .catch(function(){ entry.transFail = true; store(); });
+        }
+        function openChat(f){
+          chatFriend = f;
+          $("friendChoicePanel").classList.add("hidden");
+          $("lobbyActions").classList.remove("hidden");
+          $("lobby").classList.add("hidden");
+          $("chatScreen").classList.remove("hidden");
+          $("chatFriendName").textContent = f.name;
+          var st = ensureChatPeer(f);
+          setChatState(st && st.conn && st.conn.open ? "on" : "wait");
+          renderChatHistory();
+          connectChat(f);
+          setTimeout(function(){ try { $("chatInput").focus(); } catch(e){} }, 80);
+        }
+        $("chatBackBtn").addEventListener("click", function(){
+          chatFriend = null;
+          $("chatScreen").classList.add("hidden");
+          $("lobby").classList.remove("hidden");
+        });
+        var chatSending = false;
+        function sendChat(){
+          if (!chatFriend || chatSending) return;
+          var input = $("chatInput");
+          var text = input.value.replace(/^\s+|\s+$/g, "");
+          if (!text) return;
+          var f = chatFriend;
+          chatSending = true;
+          $("chatSendBtn").disabled = true;
+          input.value = "";
+          input.style.height = "auto";
+          var from = myLang, to = from === "zh" ? "vi" : "zh";
+          var entry = {
+            dir: "me", orig: text, trans: "", from: from,
+            ts: Date.now(), id: ++msgSeq, sess: mySess, pending: true
+          };
+          var els = appendChatMsgEl(entry);
+          function deliver(trans){
+            connectChat(f).then(function(c){
+              var ok = false;
+              if (c && c.open){
+                try {
+                  c.send({ type: "chat-msg", sess: entry.sess, id: entry.id, from: from, orig: text, trans: trans || "", ts: entry.ts });
+                  ok = true;
+                } catch(e){}
+              }
+              entry.failed = !ok;
+              appendChatHistory(f.code, {
+                dir: "me", orig: entry.orig, trans: entry.trans, from: entry.from,
+                ts: entry.ts, id: entry.id, sess: entry.sess, failed: entry.failed
+              });
+              if (!ok){
+                els.metaEl.className = "meta fail";
+                els.metaEl.textContent = fmtTime(entry.ts) + " · 对方不在线，未送达 · Không gửi được";
+                if (chatFriend && chatFriend.code === f.code) setChatState("off");
+                toast("对方不在线 · Đối phương không trực tuyến");
+              }
+              chatSending = false;
+              $("chatSendBtn").disabled = false;
+            });
+          }
+          // Translate FIRST (the shared Gemini endpoint chain), then send
+          // 原文 + 译文 together so the receiver shows both at once.
+          translateText(text, from, to)
+            .then(function(trans){
+              entry.trans = trans; entry.pending = false;
+              els.transEl.classList.remove("pending-txt");
+              els.transEl.textContent = trans;
+              deliver(trans);
+            })
+            .catch(function(){
+              entry.pending = false; entry.transFail = true;
+              els.transEl.classList.remove("pending-txt");
+              els.transEl.textContent = "Dịch thất bại · 翻译失败（只发原文，对方那边会再翻译）";
+              deliver("");
+            });
+        }
+        $("chatSendBtn").addEventListener("click", sendChat);
+        $("chatInput").addEventListener("keydown", function(ev){
+          if (ev.key === "Enter" && !ev.shiftKey){ ev.preventDefault(); sendChat(); }
+        });
+        $("chatInput").addEventListener("input", function(){
+          var el = $("chatInput");
+          el.style.height = "auto";
+          el.style.height = Math.min(el.scrollHeight, 110) + "px";
+        });
+        // Background listeners: from the moment the app opens, each
+        // friend's chat ID is being listened on, so a message can arrive
+        // whenever both phones have the app open.
+        friends.forEach(function(f){ ensureChatPeer(f); });
 
         /* ---------- hang up ---------- */
         $("hangupBtn").addEventListener("click", function(){
