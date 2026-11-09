@@ -1,2062 +1,2192 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="dark light" />
-    <link rel="icon" href="data:," />
-    <title>中越通话实时翻译 · Dịch cuộc gọi Trung–Việt</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    <style>
-      :root{
-        --ink:#ffffff;
-        --bubble-bg:rgba(255,255,255,.86);
-        --bubble-ink:#17201d;
-        --bubble-sub:#3c4a46;
-        --ctrl-bg:rgba(24,30,28,.62);
-        --ctrl-off:rgba(24,30,28,.38);
-        --red:#e23a2e;
-        --red-dark:#c62a20;
-        --green:#35d07f;
-        --amber:#f5b544;
-      }
-      *{box-sizing:border-box}
-      html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0f0e}
-      body{
-        font-family:"Be Vietnam Pro","Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
-        color:var(--ink);
-        -webkit-font-smoothing:antialiased;
-      }
-      /* ================= full-screen call stage ================= */
-      .call{position:fixed;inset:0;height:100dvh;overflow:hidden;background:#0a0f0e}
-      #remoteVideo{
-        position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0a0f0e;z-index:1;
-      }
-      .stage-bg{
-        position:absolute;inset:0;z-index:0;
-        background:
-          radial-gradient(120% 70% at 50% 0%, #2a3f3a 0%, rgba(42,63,58,0) 60%),
-          radial-gradient(ellipse at 50% 42%, #22332f 0%, #0a0f0e 78%);
-      }
-      .stage-note{
-        position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;gap:8px;
-        align-items:center;justify-content:center;text-align:center;padding:24px;pointer-events:none;
-      }
-      .stage-note .t1{font-size:19px;font-weight:800;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)}
-      .stage-note .t2{font-size:13.5px;color:#b9cdc8;max-width:300px;line-height:1.6}
-      .stage-note.hidden{display:none}
-      #localVideo{
-        position:absolute;z-index:6;top:calc(env(safe-area-inset-top, 0px) + 62px);right:12px;
-        width:27%;max-width:138px;aspect-ratio:3/4;object-fit:cover;
-        border-radius:14px;border:2px solid rgba(255,255,255,.65);
-        box-shadow:0 8px 24px rgba(0,0,0,.45);background:#111;
-      }
-      @media (min-width:700px){
-        #localVideo{width:180px;max-width:180px;aspect-ratio:4/3}
-      }
-      /* ================= top bar ================= */
-      .topbar{
-        position:absolute;z-index:8;top:0;left:0;right:0;
-        padding:calc(env(safe-area-inset-top, 0px) + 10px) 12px 0;
-        display:flex;align-items:flex-start;gap:8px;
-      }
-      .lang-pill{
-        margin:0 auto;appearance:none;border:none;cursor:pointer;font-family:inherit;
-        display:inline-flex;align-items:center;gap:10px;
-        background:rgba(20,26,24,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-        color:#fff;font-size:15.5px;font-weight:700;letter-spacing:.2px;
-        padding:10px 18px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.35);
-        max-width:100%;
-      }
-      .lang-pill .swap{font-size:15px;opacity:.85;flex:none}
-      .lang-pill .cur{color:#8fe3c8}
-      .room-pill{
-        position:absolute;left:12px;top:calc(env(safe-area-inset-top, 0px) + 10px);
-        appearance:none;border:none;cursor:pointer;font-family:inherit;
-        display:inline-flex;align-items:center;gap:6px;
-        background:rgba(20,26,24,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-        color:rgba(255,255,255,.92);font-size:11.5px;font-weight:700;letter-spacing:1px;
-        padding:7px 10px;border-radius:999px;
-      }
-      .room-pill .dot{width:8px;height:8px;border-radius:50%;background:#9aa7a3;flex:none}
-      .room-pill .dot.wait{background:var(--amber)}
-      .room-pill .dot.on{background:var(--green)}
-      @media (max-width:560px){
-        .topbar{justify-content:center}
-        .room-pill{left:8px;top:calc(env(safe-area-inset-top, 0px) + 58px);padding:6px 8px;font-size:10.5px}
-        .lang-pill{font-size:13.5px;padding:9px 13px;gap:7px}
-      }
-      /* ================= subtitle overlay ================= */
-      .subtitles{
-        position:absolute;z-index:5;left:0;right:0;
-        top:24%;bottom:138px;
-        display:flex;flex-direction:column;justify-content:flex-end;gap:10px;
-        padding:10px 14px;overflow-y:auto;overscroll-behavior:contain;
-        scrollbar-width:none;
-        -webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 46px);
-        mask-image:linear-gradient(to bottom, transparent 0, #000 46px);
-      }
-      .subtitles::-webkit-scrollbar{display:none}
-      .bubble{
-        max-width:84%;padding:10px 14px 11px;border-radius:16px;
-        background:var(--bubble-bg);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-        color:var(--bubble-ink);box-shadow:0 6px 18px rgba(0,0,0,.28);
-        animation:rise .25s ease both;
-      }
-      @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-      @media (prefers-reduced-motion: reduce){.bubble{animation:none}}
-      .bubble.from-zh{align-self:flex-start;border-bottom-left-radius:6px}
-      .bubble.from-vi{align-self:flex-end;border-bottom-right-radius:6px}
-      .bubble .orig{font-size:16.5px;font-weight:700;line-height:1.45;word-break:break-word}
-      .bubble .trans{
-        font-size:15.5px;line-height:1.5;word-break:break-word;color:var(--bubble-sub);
-        margin-top:5px;padding-top:5px;border-top:1px solid rgba(23,32,29,.12);
-      }
-      .bubble.pending{opacity:.75}
-      .bubble .trans.pending-txt{border-top:none;margin-top:2px;padding-top:0;font-size:13.5px}
-      .bubble.live{outline:2px solid rgba(143,227,200,.8)}
-      .bubble.live .orig{font-weight:600}
-      /* ================= status line ================= */
-      .status-line{
-        position:absolute;z-index:7;left:50%;transform:translateX(-50%);
-        bottom:118px;max-width:92vw;text-align:center;
-        font-size:12.5px;font-weight:600;color:rgba(255,255,255,.95);
-        background:rgba(20,26,24,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-        padding:6px 14px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-        pointer-events:none;
-      }
-      .status-line.err{background:rgba(140,30,20,.75)}
-      .status-line:empty{display:none}
-      /* ================= bottom controls: exactly 3 ================= */
-      .controls{
-        position:absolute;z-index:8;left:0;right:0;bottom:0;
-        padding:10px 24px calc(env(safe-area-inset-bottom, 0px) + 22px);
-        display:flex;align-items:center;justify-content:center;gap:34px;
-        background:linear-gradient(to top, rgba(0,0,0,.45), rgba(0,0,0,0));
-      }
-      .ctrl{
-        appearance:none;border:none;cursor:pointer;color:#fff;font-family:inherit;
-        width:64px;height:64px;border-radius:50%;flex:none;
-        background:var(--ctrl-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-        display:flex;align-items:center;justify-content:center;position:relative;
-        box-shadow:0 8px 22px rgba(0,0,0,.4);
-        transition:background .15s, transform .08s, opacity .15s;
-      }
-      .ctrl:active{transform:scale(.95)}
-      .ctrl svg{width:28px;height:28px}
-      .ctrl.off{opacity:.55;background:var(--ctrl-off)}
-      .ctrl.off::after{
-        content:"";position:absolute;left:12px;right:12px;top:50%;height:2.5px;border-radius:2px;
-        background:#ff6d5e;transform:rotate(-38deg);
-      }
-      #micBtn.listening{background:#0b6e63}
-      #micBtn.listening::before{
-        content:"";position:absolute;inset:-7px;border-radius:50%;
-        border:2px solid rgba(53,208,127,.75);animation:pulse 1.4s ease-out infinite;
-      }
-      @keyframes pulse{0%{transform:scale(.85);opacity:1}100%{transform:scale(1.25);opacity:0}}
-      @media (prefers-reduced-motion: reduce){#micBtn.listening::before{animation:none}}
-      #hangupBtn{
-        width:76px;height:76px;background:var(--red);
-      }
-      #hangupBtn:hover{background:var(--red-dark)}
-      #hangupBtn svg{width:34px;height:34px;transform:rotate(135deg)}
-      /* ================= start screen (lobby) ================= */
-      .lobby{
-        position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;
-        align-items:center;justify-content:safe center;text-align:center;padding:28px 22px;
-        overflow-y:auto;overscroll-behavior:contain;
-        background:
-          radial-gradient(120% 70% at 50% 0%, #2a3f3a 0%, rgba(42,63,58,0) 55%),
-          radial-gradient(ellipse at 50% 42%, #22332f 0%, #0a0f0e 80%);
-      }
-      .lobby.hidden{display:none}
-      .lobby .lt1{font-size:26px;font-weight:900;line-height:1.3}
-      .lobby .lt2{font-size:16px;font-weight:600;color:#8fe3c8;margin-top:6px}
-      .lobby .lt3{font-size:13.5px;color:#b9cdc8;line-height:1.65;max-width:320px;margin-top:14px}
-      .lang-choice{width:100%;max-width:340px;margin-top:22px}
-      .lang-choice .lc-label{font-size:12.5px;font-weight:700;color:#b9cdc8;letter-spacing:.4px}
-      .lang-choice .lc-row{display:flex;gap:10px;margin-top:9px}
-      .lc-btn{
-        appearance:none;cursor:pointer;font-family:inherit;flex:1;
-        border-radius:14px;padding:13px 8px;text-align:center;
-        background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.35);
-        font-size:16px;font-weight:800;transition:background .15s,border-color .15s;
-      }
-      .lc-btn .lc-sub{display:block;font-size:11.5px;font-weight:600;opacity:.85;margin-top:2px}
-      .lc-btn.sel{background:#0b6e63;border-color:#8fe3c8}
-      .lobby-actions{display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px;margin-top:26px}
-      .big-btn{
-        appearance:none;border:none;cursor:pointer;font-family:inherit;width:100%;
-        border-radius:18px;padding:20px 18px;text-align:center;
-        transition:transform .08s, background .15s;
-      }
-      .big-btn:active{transform:scale(.98)}
-      .big-btn .b1{display:block;font-size:20px;font-weight:800}
-      .big-btn .b2{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:3px}
-      .big-btn.create{background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
-      .big-btn.create:hover{background:#0a5f55}
-      .big-btn.join{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
-      .big-btn.join:hover{background:rgba(255,255,255,.18)}
-      .join-panel{width:100%;max-width:340px;margin-top:26px}
-      .join-panel .jp-label{font-size:13px;font-weight:700;color:#b9cdc8;letter-spacing:.5px}
-      #roomInput{
-        width:100%;margin-top:10px;padding:16px 12px;text-align:center;
-        font-family:inherit;font-size:30px;font-weight:800;letter-spacing:10px;text-transform:uppercase;
-        color:#fff;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.4);border-radius:16px;
-        outline:none;
-      }
-      #roomInput:focus{border-color:#8fe3c8;background:rgba(255,255,255,.14)}
-      #roomInput::placeholder{color:rgba(255,255,255,.35);letter-spacing:10px}
-      .join-panel .big-btn{margin-top:14px;background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
-      .join-panel .big-btn:hover{background:#0a5f55}
-      .join-err{min-height:20px;margin-top:10px;font-size:13px;font-weight:700;color:#ff9a8f}
-      /* ================= friends ================= */
-      .friends{width:100%;max-width:340px;margin-top:22px;text-align:left}
-      .friends-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
-      .friends-head .fh-label{font-size:12.5px;font-weight:700;color:#b9cdc8;letter-spacing:.4px}
-      .add-friend-btn{
-        appearance:none;cursor:pointer;font-family:inherit;flex:none;
-        background:rgba(11,110,99,.9);color:#fff;border:1px solid rgba(143,227,200,.5);
-        border-radius:999px;padding:8px 15px;font-size:13.5px;font-weight:800;
-      }
-      .add-friend-btn:active{transform:scale(.97)}
-      .friend-empty{font-size:12.5px;color:rgba(185,205,200,.78);line-height:1.65;margin-top:9px}
-      .friend-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:208px;overflow-y:auto;scrollbar-width:none}
-      .friend-list::-webkit-scrollbar{display:none}
-      .friend-row{
-        display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
-        background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.22);
-        border-radius:14px;padding:10px 12px;color:#fff;transition:background .15s;
-      }
-      .friend-row:active{background:rgba(255,255,255,.2)}
-      .friend-avatar{
-        width:40px;height:40px;flex:none;border-radius:50%;background:#0b6e63;color:#fff;
-        display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;
-      }
-      .friend-main{flex:1;min-width:0}
-      .friend-name{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .friend-sub{font-size:11.5px;font-weight:600;color:#b9cdc8;margin-top:1px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .friend-act{
-        appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
-        width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
-        font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0;
-      }
-      .friend-act:active{transform:scale(.92)}
-      .friend-act.del{background:rgba(226,58,46,.28);font-size:15px}
-      .friend-panel{width:100%;max-width:340px;margin-top:26px;text-align:left}
-      .friend-panel .fp-label{font-size:13px;font-weight:700;color:#b9cdc8;letter-spacing:.5px}
-      .fp-input{
-        width:100%;margin-top:9px;padding:14px 12px;font-family:inherit;
-        font-size:17px;font-weight:700;color:#fff;
-        background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.4);border-radius:14px;outline:none;
-      }
-      .fp-input:focus{border-color:#8fe3c8;background:rgba(255,255,255,.14)}
-      .fp-input::placeholder{color:rgba(255,255,255,.35)}
-      .fp-code-row{display:flex;gap:9px;margin-top:9px}
-      .fp-code-row .fp-input{margin-top:0;text-align:center;font-size:24px;font-weight:800;letter-spacing:6px;text-transform:uppercase}
-      .fp-dice{
-        appearance:none;cursor:pointer;font-family:inherit;flex:none;padding:0 14px;
-        border-radius:14px;background:rgba(255,255,255,.12);color:#fff;
-        border:1.5px solid rgba(255,255,255,.35);font-size:12.5px;font-weight:800;line-height:1.4;
-      }
-      .fp-note{font-size:12px;color:rgba(185,205,200,.82);line-height:1.65;margin-top:10px}
-      .friend-panel .big-btn{margin-top:14px;background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
-      .friend-panel .big-btn:hover{background:#0a5f55}
-      .lobby .ver-tag{margin-top:28px;font-size:12px;font-weight:700;color:rgba(185,205,200,.8);letter-spacing:.6px;line-height:1.7}
-      .back-link{
-        appearance:none;background:none;border:none;cursor:pointer;font-family:inherit;
-        color:#b9cdc8;font-size:13.5px;font-weight:700;margin-top:16px;padding:6px 10px;text-decoration:underline;
-      }
-      /* ================= invite bar (host, before peer joins) ================= */
-      .invite-bar{
-        position:absolute;z-index:9;left:50%;transform:translateX(-50%);
-        bottom:226px;width:min(92vw,380px);text-align:center;
-        background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-        border:1.5px solid rgba(143,227,200,.45);border-radius:20px;padding:14px 16px 16px;
-        box-shadow:0 12px 30px rgba(0,0,0,.45);
-      }
-      .invite-bar.hidden{display:none}
-      .invite-bar .room-big{font-size:30px;font-weight:900;letter-spacing:7px;color:#fff;line-height:1.15}
-      .invite-bar .room-cap{font-size:12px;font-weight:700;color:#b9cdc8;margin-top:2px}
-      .invite-qr{
-        margin:12px auto 0;width:188px;height:188px;padding:10px;background:#fff;border-radius:14px;
-        display:flex;align-items:center;justify-content:center;
-      }
-      .invite-qr img,.invite-qr canvas,.invite-qr table{display:block;margin:0 auto}
-      .invite-qr:empty{display:none}
-      .invite-qr-cap{font-size:12px;font-weight:700;color:#b9cdc8;margin-top:8px}
-      #copyLinkBtn{
-        appearance:none;border:none;cursor:pointer;font-family:inherit;width:100%;margin-top:12px;
-        background:#0b6e63;color:#fff;border-radius:14px;padding:16px 14px;
-        font-size:17.5px;font-weight:800;box-shadow:0 8px 20px rgba(0,0,0,.35);
-        transition:background .15s, transform .08s;
-      }
-      #copyLinkBtn:hover{background:#0a5f55}
-      #copyLinkBtn:active{transform:scale(.98)}
-      #copyLinkBtn .cb2{display:block;font-size:12.5px;font-weight:600;opacity:.85;margin-top:2px}
-      @media (max-height:560px){ .invite-bar{bottom:196px} }
-      /* ================= ended overlay ================= */
-      .ended{
-        position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;gap:14px;
-        align-items:center;justify-content:center;text-align:center;padding:24px;
-        background:rgba(6,10,9,.88);
-      }
-      .ended.hidden{display:none}
-      .ended .t1{font-size:21px;font-weight:800}
-      .ended .t2{font-size:14px;color:#b9cdc8}
-      .ended button{
-        appearance:none;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15.5px;
-        background:#0b6e63;color:#fff;border-radius:999px;padding:14px 30px;margin-top:6px;
-      }
-      /* ================= toast ================= */
-      .toast{
-        position:fixed;left:50%;top:calc(env(safe-area-inset-top, 0px) + 64px);transform:translateX(-50%) translateY(-8px);
-        background:rgba(10,14,13,.88);color:#fff;padding:9px 16px;border-radius:999px;
-        font-size:13px;font-weight:700;opacity:0;pointer-events:none;
-        transition:opacity .25s,transform .25s;z-index:50;max-width:88vw;text-align:center;
-      }
-      .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-      .hidden{display:none !important}
-      /* ================= camera/mic blocked panel ================= */
-      .media-err{
-        position:absolute;inset:0;z-index:25;overflow-y:auto;
-        display:flex;align-items:center;justify-content:center;
-        padding:28px 22px calc(env(safe-area-inset-bottom, 0px) + 28px);
-        background:rgba(6,10,9,.94);
-      }
-      .media-err.hidden{display:none}
-      .media-err-card{width:100%;max-width:400px;text-align:center}
-      .media-err-card .me-t1{font-size:23px;font-weight:900;line-height:1.35}
-      .media-err-card .me-t2{font-size:15px;font-weight:600;color:#8fe3c8;margin-top:5px}
-      .media-err-card .me-why{font-size:13.5px;color:#b9cdc8;line-height:1.7;text-align:left;margin:16px 0 0}
-      .me-steps{margin-top:16px;display:flex;flex-direction:column;gap:10px;text-align:left}
-      .me-step{
-        background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
-        border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;line-height:1.6;
-      }
-      .me-step b{color:#fff;font-weight:800}
-      .me-step .me-sub{display:block;font-size:12.5px;font-weight:600;color:#b9cdc8;margin-top:2px}
-      #mediaRetryBtn{
-        appearance:none;border:none;cursor:pointer;font-family:inherit;width:100%;margin-top:20px;
-        background:#0b6e63;color:#fff;border-radius:16px;padding:18px 14px;
-        font-size:19px;font-weight:800;box-shadow:0 10px 26px rgba(0,0,0,.4);
-        transition:background .15s, transform .08s;
-      }
-      #mediaRetryBtn:hover{background:#0a5f55}
-      #mediaRetryBtn:active{transform:scale(.98)}
-      #mediaRetryBtn .cb2{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:2px}
-      /* ================= friend choice + text chat (v12) ================= */
-      .choice-panel{width:100%;max-width:340px;margin-top:26px;text-align:center}
-      .choice-panel .cp-name{font-size:21px;font-weight:900}
-      .choice-panel .cp-sub{font-size:12.5px;font-weight:600;color:#b9cdc8;margin-top:4px}
-      .choice-panel .big-btn{margin-top:12px}
-      .big-btn.chat{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
-      .big-btn.chat:hover{background:rgba(255,255,255,.18)}
-      .chat-screen{
-        position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
-        background:
-          radial-gradient(120% 60% at 50% 0%, #243832 0%, rgba(36,56,50,0) 55%),
-          #0d1513;
-      }
-      .chat-screen.hidden{display:none}
-      .chat-head{
-        flex:none;display:flex;align-items:center;gap:10px;
-        padding:calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px;
-        background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-        border-bottom:1px solid rgba(255,255,255,.12);
-      }
-      .chat-back{
-        appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
-        width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
-        font-size:19px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0;
-      }
-      .chat-title{flex:1;min-width:0;text-align:left}
-      .chat-name{font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .chat-state{font-size:11.5px;font-weight:600;color:#b9cdc8;margin-top:1px}
-      .chat-state .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9aa7a3;margin-right:5px;vertical-align:1px}
-      .chat-state .dot.on{background:var(--green)}
-      .chat-state .dot.wait{background:var(--amber)}
-      .chat-messages{
-        flex:1;overflow-y:auto;overscroll-behavior:contain;
-        display:flex;flex-direction:column;gap:10px;padding:16px 14px 10px;
-      }
-      .chat-msg{max-width:84%;padding:10px 14px 11px;border-radius:16px;background:var(--bubble-bg);color:var(--bubble-ink);box-shadow:0 6px 18px rgba(0,0,0,.28)}
-      .chat-msg.me{align-self:flex-end;border-bottom-right-radius:6px;background:#cdeee0}
-      .chat-msg.peer{align-self:flex-start;border-bottom-left-radius:6px}
-      .chat-msg .orig{font-size:16px;font-weight:700;line-height:1.45;word-break:break-word}
-      .chat-msg .trans{font-size:15px;line-height:1.5;word-break:break-word;color:var(--bubble-sub);margin-top:5px;padding-top:5px;border-top:1px solid rgba(23,32,29,.12)}
-      .chat-msg .trans.pending-txt{border-top:none;margin-top:2px;padding-top:0;font-size:13px}
-      .chat-msg .meta{font-size:11px;font-weight:600;color:var(--bubble-sub);margin-top:6px;opacity:.85}
-      .chat-msg .meta.fail{color:#b3261c;font-weight:800}
-      .chat-empty{margin:auto;text-align:center;font-size:13.5px;color:#b9cdc8;line-height:1.7;max-width:280px;padding:20px}
-      .chat-composer{
-        flex:none;display:flex;gap:9px;align-items:flex-end;
-        padding:10px 12px calc(env(safe-area-inset-bottom, 0px) + 14px);
-        background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-        border-top:1px solid rgba(255,255,255,.12);
-      }
-      #chatInput{
-        flex:1;min-width:0;padding:13px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#fff;
-        background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.35);border-radius:16px;outline:none;resize:none;
-        max-height:110px;line-height:1.45;
-      }
-      #chatInput:focus{border-color:#8fe3c8}
-      #chatInput::placeholder{color:rgba(255,255,255,.4)}
-      #chatSendBtn{
-        appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
-        background:#0b6e63;color:#fff;border-radius:16px;padding:14px 20px;font-size:16.5px;font-weight:800;
-      }
-      #chatSendBtn:active{transform:scale(.97)}
-      #chatSendBtn:disabled{opacity:.55}
-    </style>
-  </head>
-  <body>
-    <div class="call">
-      <div class="stage-bg"></div>
-      <video id="remoteVideo" autoplay playsinline></video>
-      <div class="stage-note" id="stageNote">
-        <div class="t1" id="stageT1">正在开启摄像头…</div>
-        <div class="t2" id="stageT2">Đang mở camera… Cho phép quyền camera và mic khi được hỏi.</div>
-      </div>
-
-      <video id="localVideo" autoplay playsinline muted></video>
-
-      <!-- top: language switch pill + room code -->
-      <div class="topbar">
-        <button class="room-pill" id="roomPill" type="button" title="房间号 · Mã phòng">
-          <span class="dot" id="connDot"></span><span id="roomPillTxt">······</span>
-        </button>
-        <button class="lang-pill" id="langPill" type="button" title="切换我说的语言 · Đổi ngôn ngữ tôi nói">
-          <span id="langLeft">Tiếng Việt</span>
-          <span class="swap">⇄</span>
-          <span id="langRight" class="cur">Tiếng Trung</span>
-        </button>
-      </div>
-
-      <!-- subtitles overlaid on the video -->
-      <div class="subtitles" id="feed"></div>
-
-      <div class="status-line" id="statusLine"></div>
-
-      <!-- bottom: exactly three round buttons -->
-      <div class="controls">
-        <button class="ctrl" id="micBtn" type="button" aria-label="麦克风 · Mic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
-        </button>
-        <button class="ctrl" id="hangupBtn" type="button" aria-label="挂断 · Cúp máy">
-          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>
-        </button>
-        <button class="ctrl" id="speakerBtn" type="button" aria-label="扬声器播报 · Loa đọc bản dịch">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-        </button>
-      </div>
-
-      <!-- invite: host sees this big copy-link button until the peer joins -->
-      <div class="invite-bar hidden" id="inviteBar">
-        <div class="room-big" id="inviteRoomCode">······</div>
-        <div class="room-cap">房间号 · Mã phòng — 把链接发给对方，对方点开直接进来</div>
-        <div class="invite-qr" id="inviteQr" aria-label="邀请二维码 · Mã QR mời"></div>
-        <div class="invite-qr-cap" id="inviteQrCap">对方用手机相机扫一扫，直接进房间 · Dùng camera quét mã QR để vào phòng ngay</div>
-        <button id="copyLinkBtn" type="button">🔗 复制邀请链接<span class="cb2">Sao chép liên kết mời</span></button>
-      </div>
-
-      <!-- start screen: create or join a room -->
-      <div class="lobby" id="lobby">
-        <div class="lt1">中越视频通话 · 实时翻译</div>
-        <div class="lt2">Gọi video Trung–Việt · Dịch trực tiếp</div>
-        <div class="lt3">创建房间后把邀请链接发给对方；或者输入对方的 6 位房间号加入。<br/>Tạo phòng rồi gửi liên kết mời, hoặc nhập mã phòng 6 ký tự của đối phương để tham gia.</div>
-        <div class="lang-choice" id="langChoice">
-          <div class="lc-label">我说的语言 · Ngôn ngữ tôi nói</div>
-          <div class="lc-row">
-            <button class="lc-btn" id="lobbyLangZh" type="button">中文<span class="lc-sub">我讲中文</span></button>
-            <button class="lc-btn" id="lobbyLangVi" type="button">Tiếng Việt<span class="lc-sub">Tôi nói tiếng Việt</span></button>
-          </div>
-        </div>
-        <div class="friends" id="friendsBox">
-          <div class="friends-head">
-            <div class="fh-label">好友 · Bạn bè</div>
-            <button class="add-friend-btn" id="addFriendBtn" type="button">＋ 添加好友</button>
-          </div>
-          <div class="friend-empty" id="friendEmpty">还没有好友。添加好友后，把房间号发给对方一次；以后点好友名字就直接通话，不用扫码、不用输房间号。<br/>Chưa có bạn bè. Sau khi thêm, gửi mã phòng cho đối phương một lần; từ sau chỉ cần bấm vào tên là gọi ngay.</div>
-          <div class="friend-list" id="friendList"></div>
-        </div>
-        <div class="lobby-actions" id="lobbyActions">
-          <button class="big-btn create" id="createBtn" type="button">
-            <span class="b1">创建房间</span>
-            <span class="b2">Tạo phòng mới</span>
-          </button>
-          <button class="big-btn join" id="joinBtn" type="button">
-            <span class="b1">加入房间</span>
-            <span class="b2">Vào phòng bằng mã</span>
-          </button>
-        </div>
-        <div class="join-panel hidden" id="joinPanel">
-          <div class="jp-label">输入对方的 6 位房间号 · Nhập mã phòng 6 ký tự</div>
-          <input id="roomInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="ABC123" aria-label="房间号 · Mã phòng" />
-          <button class="big-btn" id="joinGoBtn" type="button">
-            <span class="b1">加入 · Vào phòng</span>
-          </button>
-          <div class="join-err" id="joinErr"></div>
-          <button class="back-link" id="joinBackBtn" type="button">← 返回 · Quay lại</button>
-        </div>
-        <div class="friend-panel hidden" id="friendPanel">
-          <div class="fp-label">好友名字 · Tên bạn bè</div>
-          <input class="fp-input" id="friendNameInput" type="text" maxlength="20" autocomplete="off" placeholder="比如：阿明 · Ví dụ: Minh" aria-label="好友名字 · Tên bạn bè" />
-          <div class="fp-label" style="margin-top:16px">固定房间号 · Mã phòng cố định</div>
-          <div class="fp-code-row">
-            <input class="fp-input" id="friendCodeInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="ABC123" aria-label="房间号 · Mã phòng" />
-            <button class="fp-dice" id="friendDiceBtn" type="button">随机生成<br/>Tạo ngẫu nhiên</button>
-          </div>
-          <div class="fp-note">上面已经自动生成了一个新房间号：保存后把这个号发给对方一次，对方在他那边的「添加好友」里填上这个号，你们就互相加好了。如果对方已经给了你一个房间号，就把上面的号改成对方的。<br/>Một mã phòng mới đã được tạo sẵn ở trên: lưu xong hãy gửi mã này cho đối phương một lần, họ nhập mã đó trong «Thêm bạn bè» bên máy họ là xong. Nếu đối phương đã đưa mã phòng cho bạn, hãy sửa mã ở trên thành mã của họ.</div>
-          <button class="big-btn" id="friendSaveBtn" type="button">
-            <span class="b1">保存 · Lưu</span>
-          </button>
-          <div class="join-err" id="friendErr"></div>
-          <button class="back-link" id="friendBackBtn" type="button">← 返回 · Quay lại</button>
-        </div>
-        <div class="choice-panel hidden" id="friendChoicePanel">
-          <div class="cp-name" id="choiceFriendName">好友</div>
-          <div class="cp-sub">选一种联系方式 · Chọn cách liên lạc</div>
-          <button class="big-btn create" id="choiceCallBtn" type="button">
-            <span class="b1">📞 语音通话</span>
-            <span class="b2">Gọi thoại / video</span>
-          </button>
-          <button class="big-btn chat" id="choiceChatBtn" type="button">
-            <span class="b1">💬 打字聊天</span>
-            <span class="b2">Nhắn tin · 自动翻译</span>
-          </button>
-          <button class="back-link" id="choiceBackBtn" type="button">← 返回 · Quay lại</button>
-        </div>
-        <div class="ver-tag">版本号 v12 · Phiên bản v12<br/>双方版本号要一致 · Cả hai máy phải cùng phiên bản</div>
-      </div>
-
-      <div class="ended hidden" id="endedOverlay">
-        <div class="t1">通话已结束</div>
-        <div class="t2">Cuộc gọi đã kết thúc</div>
-        <button id="restartBtn" type="button">重新开始 · Bắt đầu lại</button>
-      </div>
-
-      <!-- camera/mic blocked: shown when getUserMedia is denied or fails,
-           with the steps to re-enable it and a retry button -->
-      <div class="media-err hidden" id="mediaErr">
-        <div class="media-err-card">
-          <div class="me-t1">摄像头 / 麦克风被阻止了</div>
-          <div class="me-t2">Camera / mic đã bị chặn</div>
-          <p class="me-why">浏览器不让这个页面使用摄像头和麦克风，所以没法视频通话——多半是之前点过「不允许」。按你打开页面的方式，照下面重新打开，再点下面的「重新授权」。<br/>Trình duyệt không cho trang này dùng camera và mic nên không gọi video được — thường là do trước đó đã bấm «Không cho phép». Hãy mở lại theo cách bạn đã mở trang, rồi bấm «Cấp quyền lại» bên dưới.</p>
-          <div class="me-steps">
-            <div class="me-step"><b>在 Safari 里：</b>点地址栏左边的「大小」按钮 → 点「网站设置」 → 把「摄像头」和「麦克风」都改成「允许」。<span class="me-sub">Trong Safari: nhấn nút «A A» bên trái thanh địa chỉ → «Cài đặt trang web» → đổi «Camera» và «Micrô» thành «Cho phép».</span></div>
-            <div class="me-step"><b>在微信里：</b>关掉这个页面，重新扫码（或重新点开链接）进来，弹出询问时点「允许」。<span class="me-sub">Trong WeChat: đóng trang này, quét lại mã QR (hoặc bấm lại liên kết) để vào, khi được hỏi thì bấm «Cho phép».</span></div>
-          </div>
-          <button id="mediaRetryBtn" type="button">重新授权<span class="cb2">Cấp quyền lại</span></button>
-        </div>
-      </div>
-    </div>
-
-      <!-- text chat with a friend: auto-translated, via PeerJS data channel -->
-      <div class="chat-screen hidden" id="chatScreen">
-        <div class="chat-head">
-          <button class="chat-back" id="chatBackBtn" type="button" aria-label="返回 · Quay lại">←</button>
-          <div class="chat-title">
-            <div class="chat-name" id="chatFriendName">好友</div>
-            <div class="chat-state" id="chatState"><span class="dot wait"></span>正在连接… · Đang kết nối…</div>
-          </div>
-        </div>
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-composer">
-          <textarea id="chatInput" rows="1" maxlength="500" placeholder="打字发消息，自动翻译 · Nhập tin nhắn, dịch tự động" aria-label="消息输入 · Nhập tin nhắn"></textarea>
-          <button id="chatSendBtn" type="button">发送<br/><span style="font-size:11.5px;font-weight:600;opacity:.85">Gửi</span></button>
-        </div>
-      </div>
-
-    <div class="toast" id="toast"></div>
-
-    <script>
-      (function(){
-        "use strict";
-        var PREFIX = "zhyuetong-v1-";
-        var $ = function(id){ return document.getElementById(id); };
-
-        /* No in-app browser gate: the page runs normally inside WeChat /
-           Messenger / Zalo webviews too — camera and mic DO get authorised
-           there (the reported failure was the forced jump out to Safari
-           losing that authorisation). Camera/mic are requested only after
-           the user taps 创建房间 / 加入房间 (see startRoom), and a denial
-           shows the re-enable panel instead of failing silently. */
-
-        var myLang = "zh"; // the language I speak: 'zh' | 'vi'
-        var roomCode = null, isHost = false;
-        var peer = null, conn = null, mediaCall = null;
-        var connAttempt = null, connAttemptAt = 0, connAttemptDead = true;
-        /* random per page load: message ids restart from 1 on every load, so
-           receivers dedupe on (sess, id) — otherwise a partner who reloads
-           their page would have their first sentences dropped as "dupes" */
-        var mySess = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-        var localStream = null, mediaStarted = false;
-        var autoSpeak = true;
-        var msgSeq = 0;
-        /* recogniser-language self-correction counters (see rec.onend) */
-        var silentCycles = 0, probeCycles = 0;
-
-        /* continuous listening state */
-        var listenOn = false;      // continuous listening mode (mic button)
-        var recognition = null;    // active recognizer
-        var recLang = "zh";        // language the current recognizer listens for
-        var restartTimer = null;
-        var cycleGotFinal = false; // current cycle produced a final result
-        var cycleError = "";
-        var recStarting = false;
-        var intentionalRestart = false; // language pill swap: don't toggle language on this restart
-
-        var remoteVideo = $("remoteVideo"), localVideo = $("localVideo");
-        var feed = $("feed");
-
-        /* ---------- toast ---------- */
-        var toastTimer = null;
-        function toast(msg){
-          var t = $("toast"); t.textContent = msg; t.classList.add("show");
-          clearTimeout(toastTimer);
-          toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2400);
-        }
-
-        /* ---------- status line ---------- */
-        function setStatus(msg, isErr){
-          var el = $("statusLine");
-          el.textContent = msg || "";
-          el.classList.toggle("err", !!isErr);
-        }
-
-        /* ---------- connection dot ---------- */
-        function setConn(state){
-          $("connDot").className = "dot" + (state === "on" ? " on" : state === "wait" ? " wait" : "");
-        }
-
-        /* ---------- language pill ---------- */
-        function renderLangPill(){
-          // screenshot order: Tiếng Việt ⇄ Tiếng Trung; highlight the side I speak
-          $("langLeft").textContent = "Tiếng Việt";
-          $("langRight").textContent = "Tiếng Trung";
-          $("langLeft").classList.toggle("cur", myLang === "vi");
-          $("langRight").classList.toggle("cur", myLang === "zh");
-        }
-        function renderLobbyLang(){
-          var zh = $("lobbyLangZh"), vi = $("lobbyLangVi");
-          if (zh) zh.classList.toggle("sel", myLang === "zh");
-          if (vi) vi.classList.toggle("sel", myLang === "vi");
-        }
-        function setMyLang(lang, silent){
-          myLang = lang === "vi" ? "vi" : "zh";
-          recLang = myLang;
-          silentCycles = 0; probeCycles = 0;
-          renderLangPill();
-          renderLobbyLang();
-          if (!silent) toast(myLang === "zh" ? "我说中文 · 对方说越南语" : "Tôi nói tiếng Việt · Đối phương nói tiếng Trung");
-          if (conn && conn.open){ try { conn.send({ type: "hello", lang: myLang }); } catch(e){} }
-          if (listenOn) restartRecognitionSoon(60);
-          // the invite link (and its QR code) embeds the partner's language
-          if (isHost && roomCode) renderInviteQr();
-        }
-        $("langPill").addEventListener("click", function(){
-          setMyLang(myLang === "zh" ? "vi" : "zh", false);
-        });
-        if ($("lobbyLangZh")) $("lobbyLangZh").addEventListener("click", function(){ setMyLang("zh", false); });
-        if ($("lobbyLangVi")) $("lobbyLangVi").addEventListener("click", function(){ setMyLang("vi", false); });
-        renderLangPill();
-        renderLobbyLang();
-
-        /* ---------- speech synthesis ---------- */
-        function pickVoice(langPrefix){
-          try {
-            var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
-            for (var i = 0; i < voices.length; i++){
-              if (voices[i].lang && voices[i].lang.toLowerCase().indexOf(langPrefix) === 0) return voices[i];
-            }
-          } catch(e){}
-          return null;
-        }
-        if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined){
-          window.speechSynthesis.onvoiceschanged = function(){};
-        }
-        function speak(text, lang){
-          if (!text || !autoSpeak || !("speechSynthesis" in window)) return;
-          try {
-            window.speechSynthesis.cancel();
-            var u = new SpeechSynthesisUtterance(text);
-            u.lang = lang === "zh" ? "zh-CN" : "vi-VN";
-            var v = pickVoice(lang === "zh" ? "zh" : "vi");
-            if (v) u.voice = v;
-            u.rate = 1;
-            window.speechSynthesis.speak(u);
-          } catch(e){}
-        }
-
-        /* ---------- translation ---------- */
-        function badTranslation(out, src){
-          if (!out) return true;
-          var s = String(out).trim();
-          if (!s) return true;
-          if (/MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID (EMAIL|TARGET|SOURCE)|NO QUERY SPECIFIED|^[A-Z ]*ERROR/i.test(s)) return true;
-          // an "translation" identical to the source (other than a word or two) means it was not translated
-          if (s.toLowerCase() === String(src || "").trim().toLowerCase() && s.length > 3) return true;
-          return false;
-        }
-        function fetchJson(url, ms){
-          // fetch with a hard timeout: a translation request that hangs must
-          // reject so the fallback service (and the receiver-side fallback)
-          // can take over instead of the sentence never being sent at all.
-          return new Promise(function(resolve, reject){
-            var done = false;
-            var ctl = ("AbortController" in window) ? new AbortController() : null;
-            var timer = setTimeout(function(){
-              if (done) return; done = true;
-              if (ctl){ try { ctl.abort(); } catch(e){} }
-              reject(new Error("translate timeout"));
-            }, ms || 6000);
-            fetch(url, ctl ? { signal: ctl.signal } : undefined)
-              .then(function(r){ return r.json(); })
-              .then(function(j){
-                if (done) return; done = true; clearTimeout(timer); resolve(j);
-              })
-              .catch(function(err){
-                if (done) return; done = true; clearTimeout(timer); reject(err);
-              });
-          });
-        }
-        function fetchJsonPost(url, body, ms){
-          // POST variant of fetchJson, with the same hard-timeout behaviour:
-          // a hung translation request must reject so the fallback chain
-          // (and the receiver-side fallback) can take over.
-          return new Promise(function(resolve, reject){
-            var done = false;
-            var ctl = ("AbortController" in window) ? new AbortController() : null;
-            var timer = setTimeout(function(){
-              if (done) return; done = true;
-              if (ctl){ try { ctl.abort(); } catch(e){} }
-              reject(new Error("translate timeout"));
-            }, ms || 8000);
-            fetch(url, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-              signal: ctl ? ctl.signal : undefined
-            })
-              .then(function(r){ return r.json(); })
-              .then(function(j){
-                if (done) return; done = true; clearTimeout(timer); resolve(j);
-              })
-              .catch(function(err){
-                if (done) return; done = true; clearTimeout(timer); reject(err);
-              });
-          });
-        }
-        var TRANSLATE_API = "https://zhong-yue-fanyi-api.vercel.app/api/translate";
-        function translateViaServer(text, from, to){
-          // Primary translation line for BOTH directions and BOTH phones:
-          // the server-side AI endpoint. 8s timeout; any failure, empty
-          // result, or untranslated echo falls through to the free services.
-          var fromCode = from === "zh" ? "zh-CN" : "vi";
-          var toCode = to === "zh" ? "zh-CN" : "vi";
-          return fetchJsonPost(TRANSLATE_API, { text: text, from: fromCode, to: toCode }, 8000)
-            .then(function(j){
-              var out = j && j.translation ? String(j.translation).trim() : "";
-              if (badTranslation(out, text)) throw new Error("bad server translation");
-              return out;
-            });
-        }
-        function translateViaMyMemory(text, from, to){
-          var pair = (from === "zh" ? "zh-CN" : "vi") + "|" + (to === "zh" ? "zh-CN" : "vi");
-          var url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + encodeURIComponent(pair);
-          return fetchJson(url)
-            .then(function(j){
-              var out = j && j.responseData && j.responseData.translatedText ? String(j.responseData.translatedText).trim() : "";
-              if (badTranslation(out, text)) throw new Error("bad mymemory translation");
-              return out;
-            });
-        }
-        function translateViaGoogle(text, from, to){
-          var sl = from === "zh" ? "zh-CN" : "vi";
-          var tl = to === "zh" ? "zh-CN" : "vi";
-          var url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" + encodeURIComponent(sl) + "&tl=" + encodeURIComponent(tl) + "&dt=t&q=" + encodeURIComponent(text);
-          return fetchJson(url)
-            .then(function(j){
-              var out = "";
-              if (j && j[0]){ for (var i = 0; i < j[0].length; i++){ if (j[0][i] && j[0][i][0]) out += j[0][i][0]; } }
-              out = String(out || "").trim();
-              if (badTranslation(out, text)) throw new Error("bad google translation");
-              return out;
-            });
-        }
-        function translateText(text, from, to){
-          // Server AI endpoint first (same line for zh->vi and vi->zh, on
-          // both phones). Only when it fails do we fall back to the free
-          // Google endpoint, then to MyMemory.
-          return translateViaServer(text, from, to).catch(function(){
-            return translateViaGoogle(text, from, to);
-          }).catch(function(){
-            return translateViaMyMemory(text, from, to);
-          });
-        }
-
-        /* ---------- subtitle bubbles on the video ---------- */
-        function scrollFeed(){
-          feed.scrollTop = feed.scrollHeight;
-        }
-        function addBubble(orig, trans, fromLang, pending){
-          var toLang = fromLang === "zh" ? "vi" : "zh";
-          var div = document.createElement("div");
-          div.className = "bubble from-" + fromLang + (pending ? " pending" : "");
-          var o = document.createElement("div");
-          o.className = "orig"; o.textContent = orig;
-          var t = document.createElement("div");
-          t.className = "trans" + (pending ? " pending-txt" : "");
-          t.textContent = pending ? "Đang dịch… / 正在翻译…" : trans;
-          div.appendChild(o); div.appendChild(t);
-          feed.appendChild(div);
-          while (feed.children.length > 30) feed.removeChild(feed.firstChild);
-          scrollFeed();
-          return { root: div, transEl: t, toLang: toLang };
-        }
-        function fillBubble(handle, trans){
-          handle.root.classList.remove("pending");
-          handle.transEl.classList.remove("pending-txt");
-          handle.transEl.textContent = trans;
-        }
-        /* live (interim) bubble while speaking */
-        var liveBubble = null, liveOrigEl = null;
-        function showLive(text, fromLang){
-          if (!text){ hideLive(); return; }
-          if (!liveBubble){
-            liveBubble = document.createElement("div");
-            liveBubble.className = "bubble live from-" + fromLang;
-            liveOrigEl = document.createElement("div");
-            liveOrigEl.className = "orig";
-            liveBubble.appendChild(liveOrigEl);
-            feed.appendChild(liveBubble);
-          }
-          liveBubble.className = "bubble live from-" + fromLang;
-          liveOrigEl.textContent = text;
-          scrollFeed();
-        }
-        function hideLive(){
-          if (liveBubble && liveBubble.parentNode) liveBubble.parentNode.removeChild(liveBubble);
-          liveBubble = null; liveOrigEl = null;
-        }
-
-        /* demo bubbles in the screenshot's format, shown until the first real line */
-        var demoDone = false;
-        function showDemo(){
-          addBubble("两千平方。", "Hai nghìn mét vuông.", "zh", false);
-          addBubble("Sản xuất tồn kho nhiều như vậy à?", "这就是目前的库存产量吗？", "vi", false);
-        }
-        function clearDemo(){
-          if (demoDone) return;
-          demoDone = true;
-          feed.innerHTML = "";
-          liveBubble = null; liveOrigEl = null;
-        }
-        showDemo();
-
-        /* ---------- language guess from transcript ---------- */
-        var VI_MARKS = /[ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i;
-        function guessLang(text, fallback){
-          if (/[\u4e00-\u9fff]/.test(text)) return "zh";
-          if (VI_MARKS.test(text)) return "vi";
-          return fallback;
-        }
-
-        /* ---------- process one spoken sentence ---------- */
-        var lastSentText = "", lastSentAt = 0;
-        /* Sentences spoken while the data channel is still connecting are
-           queued here and flushed the moment it opens, instead of being
-           silently dropped. `conn` only ever points at a connection that
-           has actually opened (see wireConn). */
-        var pendingOut = [];
-        function sendData(obj){
-          if (conn && conn.open){ try { conn.send(obj); return true; } catch(e){} }
-          return false;
-        }
-        function flushPending(){
-          if (!conn || !conn.open || !pendingOut.length) return;
-          var queued = pendingOut; pendingOut = [];
-          for (var i = 0; i < queued.length; i++){
-            try { conn.send(queued[i]); }
-            catch(e){ pendingOut.push(queued[i]); }
-          }
-        }
-        function sendOrQueue(obj){
-          // Try flushing older queued sentences first, then this one. Before
-          // this, a send() that threw on an already-open connection queued
-          // the sentence behind a flush that only ran in the "open" handler
-          // — which had already fired — so it never left this phone at all,
-          // while the local bubble still showed. A periodic flush (started
-          // in startRoom) plus this retry make the queue self-healing.
-          flushPending();
-          if (!sendData(obj)) pendingOut.push(obj);
-        }
-        function processMessage(text, fromLang){
-          text = (text || "").trim();
-          if (!text) return;
-          var now = Date.now();
-          if (text === lastSentText && now - lastSentAt < 2500) return; // avoid double-send on restart overlap
-          lastSentText = text; lastSentAt = now;
-          fromLang = fromLang === "vi" ? "vi" : "zh";
-          var to = fromLang === "zh" ? "vi" : "zh";
-          clearDemo();
-          hideLive();
-          var handle = addBubble(text, "", fromLang, true);
-          var id = ++msgSeq;
-          var hasPeer = !!(conn || connAttempt);
-          if (hasPeer){
-            // Send the recognised sentence FIRST, before translating.
-            // The old flow only sent after this phone's translation had
-            // succeeded, so a slow/failed translation on the sender's
-            // phone meant the other side saw nothing at all — while the
-            // sender's own bubble still showed locally.
-            sendOrQueue({ type: "msg", sess: mySess, id: id, from: fromLang, orig: text, trans: "" });
-          }
-          translateText(text, fromLang, to)
-            .then(function(trans){
-              fillBubble(handle, trans);
-              if (hasPeer){
-                // follow-up carrying the translation for the same bubble
-                sendOrQueue({ type: "trans", sess: mySess, id: id, trans: trans });
-              } else {
-                // not connected: read the translation aloud on this phone (face-to-face)
-                speak(trans, to);
-              }
-            })
-            .catch(function(){
-              handle.root.classList.remove("pending");
-              handle.transEl.textContent = "Dịch thất bại · 翻译失败，检查网络";
-              // nothing more to send: the peer already has the original and
-              // translates it on its own phone (see receiveRemoteMsg)
-            });
-        }
-
-        /* ---------- receiving the peer's sentences ---------- */
-        var remoteMsgs = {}; // (sess, msg id) -> { handle, done }
-        function remoteKey(data){
-          if (data.id === undefined || data.id === null) return null;
-          return (data.sess || "") + ":" + data.id;
-        }
-        function receiveRemoteMsg(data){
-          clearDemo();
-          var from = data.from === "vi" ? "vi" : "zh";
-          var key = remoteKey(data);
-          if (key !== null && remoteMsgs[key]) return; // duplicate delivery
-          var handle = addBubble(data.orig || "", data.trans || "", from, !data.trans);
-          var rec = { handle: handle, done: !!data.trans };
-          if (key !== null) remoteMsgs[key] = rec;
-          if (data.trans){
-            speak(data.trans, handle.toLang);
-            return;
-          }
-          // No translation attached: translate the original HERE, on the
-          // receiving phone, so the bubble still fills in even when the
-          // sender's translation service failed or timed out.
-          translateText(data.orig || "", from, handle.toLang)
-            .then(function(trans){
-              if (rec.done) return;
-              rec.done = true;
-              fillBubble(handle, trans);
-              speak(trans, handle.toLang);
-            })
-            .catch(function(){
-              if (rec.done) return;
-              rec.done = true;
-              handle.root.classList.remove("pending");
-              handle.transEl.classList.remove("pending-txt");
-              handle.transEl.textContent = "Dịch thất bại · 翻译失败（上面是对方原话）";
-            });
-        }
-        function receiveRemoteTrans(data){
-          var key = remoteKey(data);
-          if (key === null || !data.trans) return;
-          var rec = remoteMsgs[key];
-          if (!rec || rec.done) return;
-          rec.done = true;
-          fillBubble(rec.handle, data.trans);
-          speak(data.trans, rec.handle.toLang);
-        }
-
-        /* ================================================================
-           CONTINUOUS speech recognition — hands-free
-           - One recognizer runs at a time, configured for zh-CN or vi-VN.
-           - It restarts automatically whenever it ends or errors while
-             listening mode is ON.
-           - While a call is connected the recogniser stays locked to the
-             language this phone's owner speaks (myLang): the other side's
-             phone does the same for its language, and the two exchange
-             already-translated text. Flipping languages mid-call made a
-             Vietnamese speaker get listened to with the Chinese recogniser.
-           - Only when NOT connected (one phone used face-to-face) does a
-             silent cycle try the other language.
-           ================================================================ */
-        var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-        /* iOS Safari's recogniser (the partner's iPhone) streams interim
-           results for Vietnamese but often never marks them final — and
-           with continuous=true a session can hang that way indefinitely.
-           A sentence only leaves this phone once it is final, so Vietnamese
-           speech showed as a live bubble on the speaker's own screen and
-           was never sent or translated. On iOS we therefore run
-           non-continuous sessions (each utterance ends the session), and
-           below we promote a stable interim transcript to a sentence
-           ourselves and flush any leftover transcript when a session ends. */
-        var IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || "") ||
-          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
-        function setMicUI(){
-          $("micBtn").classList.toggle("listening", listenOn);
-          $("micBtn").classList.toggle("off", !listenOn);
-        }
-        function startRecCycle(){
-          if (!listenOn) return;
-          if (!SR){
-            setStatus("Trình duyệt này không hỗ trợ nhận dạng giọng nói · 本机浏览器不支持语音识别", true);
-            listenOn = false; setMicUI();
-            return;
-          }
-          if (recognition || recStarting) return;
-          recStarting = true;
-          cycleGotFinal = false; cycleError = "";
-          var rec;
-          try { rec = new SR(); } catch(e){ recStarting = false; scheduleRestart(800); return; }
-          recognition = rec;
-          rec.lang = recLang === "zh" ? "zh-CN" : "vi-VN";
-          rec.interimResults = true;
-          try { rec.continuous = !IS_IOS; } catch(e){}
-          var finalBuf = "";
-          var handledUpTo = 0;
-          var interimText = "";   // latest not-yet-final transcript this cycle
-          var lastFinalText = ""; // last final sentence processed this cycle
-          var promotedText = "";  // interim already promoted to a sentence this cycle
-          var promoteTimer = null;
-          function clearPromoteTimer(){
-            if (promoteTimer){ clearTimeout(promoteTimer); promoteTimer = null; }
-          }
-          function promoteInterim(){
-            promoteTimer = null;
-            if (recognition !== rec || !listenOn) return;
-            var text = interimText.trim();
-            if (!text || text === promotedText || text === lastFinalText) return;
-            promotedText = text;
-            cycleGotFinal = true;
-            processMessage(text, guessLang(text, recLang));
-            // End this session so the stuck non-final result is dropped;
-            // onend restarts listening with fresh result indices. Without
-            // this, an iOS session can sit on one un-finalised result for
-            // the whole call and nothing is ever sent.
-            try { rec.abort(); } catch(e){}
-          }
-          function armPromoteTimer(){
-            clearPromoteTimer();
-            if (!IS_IOS) return;
-            if (interimText.trim()) promoteTimer = setTimeout(promoteInterim, 1200);
-          }
-          rec.onresult = function(ev){
-            var interim = "";
-            for (var i = 0; i < ev.results.length; i++){
-              var res = ev.results[i];
-              if (res.isFinal){
-                if (i >= handledUpTo){
-                  var sentence = (res[0].transcript || "").trim();
-                  handledUpTo = i + 1;
-                  if (sentence){
-                    cycleGotFinal = true;
-                    lastFinalText = sentence;
-                    // label by the words actually recognised, not only by the
-                    // configured language: if this phone is set to Chinese but
-                    // the transcript plainly carries Vietnamese diacritics,
-                    // the sentence is Vietnamese and must travel as one.
-                    var from = guessLang(sentence, recLang);
-                    finalBuf = "";
-                    // a final that merely completes an interim we already
-                    // promoted was already sent — don't send it twice
-                    if (!(promotedText && (sentence === promotedText || sentence.indexOf(promotedText) === 0))){
-                      processMessage(sentence, from);
-                    }
-                  }
-                }
-              } else {
-                interim += res[0].transcript;
-              }
-            }
-            interimText = interim;
-            if (interim){ showLive(interim, guessLang(interim, recLang)); armPromoteTimer(); }
-            else if (!finalBuf){ hideLive(); clearPromoteTimer(); }
-          };
-          rec.onerror = function(ev){
-            cycleError = ev && ev.error ? ev.error : "";
-            if (cycleError === "not-allowed" || cycleError === "service-not-allowed"){
-              listenOn = false; setMicUI();
-              setStatus("Chưa cấp quyền mic · 麦克风未授权，请在浏览器设置里允许麦克风", true);
-            } else if (cycleError === "audio-capture"){
-              listenOn = false; setMicUI();
-              setStatus("Không tìm thấy mic · 找不到麦克风", true);
-            }
-          };
-          rec.onend = function(){
-            recognition = null; recStarting = false;
-            clearPromoteTimer();
-            // Flush a transcript that never turned final (the iOS
-            // Vietnamese failure): the words WERE recognised and shown
-            // live on this phone, so send them now instead of silently
-            // dropping them — the other side currently receives nothing.
-            // Runs before the silent-cycle logic below so a flushed
-            // sentence counts as a productive cycle.
-            var stuck = interimText.trim();
-            if (listenOn && stuck && stuck !== promotedText && stuck !== lastFinalText){
-              cycleGotFinal = true;
-              processMessage(stuck, guessLang(stuck, recLang));
-            }
-            hideLive();
-            if (!listenOn){ intentionalRestart = false; return; }
-            if (intentionalRestart){
-              intentionalRestart = false;
-              recLang = myLang;
-            } else if (conn && conn.open){
-              // In a call the recogniser stays on my own language — with one
-              // self-correction. If cycle after cycle produces NO final at
-              // all, the configured language is most likely wrong for what
-              // is actually being spoken: a phone left on the Chinese
-              // default hears Chinese speech fine but returns nothing
-              // final for Vietnamese, so the speaker sees interim words on
-              // his own screen while the other side receives nothing —
-              // exactly the reported failure. After a few silent cycles,
-              // probe the other language; if it starts producing finals,
-              // adopt it as my language for the rest of the call.
-              if (cycleGotFinal){
-                silentCycles = 0; probeCycles = 0;
-                if (recLang !== myLang) setMyLang(recLang, false);
-                recLang = myLang;
-              } else if (recLang !== myLang){
-                probeCycles++;
-                if (probeCycles >= 3){ probeCycles = 0; silentCycles = 0; recLang = myLang; }
-              } else {
-                silentCycles++;
-                if (silentCycles >= 3){ silentCycles = 0; recLang = myLang === "zh" ? "vi" : "zh"; }
-              }
-            } else if (!cycleGotFinal && cycleError !== "aborted"){
-              // not connected, heard nothing -> next cycle tries the other language (face-to-face)
-              recLang = recLang === "zh" ? "vi" : "zh";
-            } else if (cycleGotFinal){
-              recLang = myLang;
-            }
-            scheduleRestart(cycleError === "no-speech" ? 200 : 350);
-          };
-          try {
-            rec.start();
-            setStatus(recLang === "zh" ? "Đang nghe… cứ nói tự nhiên · 正在听，直接说话即可" : "Đang nghe… cứ nói tự nhiên · 正在听，直接说话即可", false);
-          } catch(e){
-            recognition = null; recStarting = false;
-            scheduleRestart(700);
-          }
-        }
-        function scheduleRestart(ms){
-          if (!listenOn) return;
-          clearTimeout(restartTimer);
-          restartTimer = setTimeout(startRecCycle, ms);
-        }
-        function restartRecognitionSoon(ms){
-          clearTimeout(restartTimer);
-          intentionalRestart = true;
-          if (recognition){ try { recognition.abort(); } catch(e){} }
-          else { intentionalRestart = false; scheduleRestart(ms || 200); }
-          // onend of the aborted recognizer schedules the next cycle in myLang
-        }
-        function setListen(on){
-          listenOn = on;
-          setMicUI();
-          if (on){
-            recLang = myLang;
-            startRecCycle();
-          } else {
-            clearTimeout(restartTimer);
-            if (recognition){ try { recognition.abort(); } catch(e){} recognition = null; }
-            hideLive();
-            setStatus("", false);
-            if (localStream) localStream.getAudioTracks().forEach(function(t){ t.enabled = false; });
-          }
-          if (on && localStream) localStream.getAudioTracks().forEach(function(t){ t.enabled = true; });
-        }
-        $("micBtn").addEventListener("click", function(){ setListen(!listenOn); });
-
-        /* ---------- speaker button: toggle spoken translation ---------- */
-        function renderSpeakerUI(){
-          $("speakerBtn").classList.toggle("off", !autoSpeak);
-        }
-        $("speakerBtn").addEventListener("click", function(){
-          autoSpeak = !autoSpeak;
-          renderSpeakerUI();
-          if (!autoSpeak && "speechSynthesis" in window){ try { window.speechSynthesis.cancel(); } catch(e){} }
-          toast(autoSpeak ? "Đã bật đọc bản dịch · 已开语音播报" : "Đã tắt đọc bản dịch · 已关语音播报");
-        });
-        renderSpeakerUI();
-        setMicUI();
-
-        /* ---------- media ----------
-           getUserMedia is ONLY ever called from a button tap: startRoom
-           runs from the 创建房间 / 加入房间 taps, and the 重新授权 button
-           below retries it. Nothing requests camera/mic at page load.
-           If permission is denied (or was denied earlier and the browser
-           no longer asks), the session does NOT start and the page shows
-           the blocked panel with the steps to re-enable camera/mic,
-           instead of failing silently behind a "waiting" screen. */
-        var sessionBegun = false;
-        function beginSession(){
-          if (sessionBegun) return;
-          sessionBegun = true;
-          initPeer(isHost ? hostId() : guestId());
-          // hands-free from the start: continuous listening ON
-          setListen(true);
-          // keep retrying any sentence that could not be sent yet, so a
-          // recognised line can never sit in the queue unsent
-          setInterval(flushPending, 1500);
-        }
-        function showMediaError(){
-          $("mediaErr").classList.remove("hidden");
-          $("stageT1").textContent = "摄像头/麦克风被阻止了";
-          $("stageT2").textContent = "Camera / mic đã bị chặn · 按屏幕上的说明重新打开";
-        }
-        function getMedia(){
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-            showMediaError();
-            return Promise.resolve(null);
-          }
-          // v12 smoothness fix: 480p / ~20fps capture. The previous
-          // unconstrained request let phones pick 720p/1080p, which
-          // overloaded both the handset encoder and the WiFi link and
-          // made the picture stutter even on a local network.
-          return navigator.mediaDevices.getUserMedia({
-              video: {
-                width: { ideal: 640, max: 640 },
-                height: { ideal: 480, max: 480 },
-                frameRate: { ideal: 20, max: 24 }
-              },
-              audio: true
-            })
-            .then(function(stream){
-              localStream = stream;
-              localVideo.srcObject = stream;
-              var vt = stream.getVideoTracks()[0];
-              if (vt && vt.applyConstraints){
-                vt.applyConstraints({ width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 20, max: 24 } }).catch(function(){});
-              }
-              if (!listenOn) stream.getAudioTracks().forEach(function(t){ t.enabled = false; });
-              if (isHost){
-                $("stageT1").textContent = "等待对方加入…";
-                $("stageT2").textContent = "Đang chờ đối phương… Gửi liên kết mời bên dưới cho đối phương, họ mở ra là vào ngay.";
-              } else {
-                $("stageT1").textContent = "正在加入房间…";
-                $("stageT2").textContent = "Đang vào phòng… chờ đối phương một chút.";
-              }
-              return stream;
-            })
-            .catch(function(){
-              showMediaError();
-              return null;
-            });
-        }
-        $("mediaRetryBtn").addEventListener("click", function(){
-          // The tap itself is the user gesture, so the browser can prompt
-          // again; if permission is now granted the session starts here.
-          getMedia().then(function(stream){
-            if (stream){
-              $("mediaErr").classList.add("hidden");
-              beginSession();
-            }
-          });
-        });
-
-        /* ---------- room: kept behind the call UI, no setup card ---------- */
-        function genCode(){
-          var chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", s = "";
-          for (var i = 0; i < 6; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
-          return s;
-        }
-        function getParam(name){
-          try { return new URLSearchParams(window.location.search).get(name); } catch(e){ return null; }
-        }
-        function hostId(){ return PREFIX + roomCode + "-h"; }
-        function guestId(){ return PREFIX + roomCode + "-g"; }
-
-        function wireConn(c){
-          connAttempt = c; connAttemptAt = Date.now(); connAttemptDead = false;
-          c.on("open", function(){
-            // Only a connection that has ACTUALLY opened becomes the send
-            // target. Before this fix, `conn` pointed at whichever attempt
-            // was created last — on a slow network that attempt might never
-            // open while an earlier one did, so the guest's sentences were
-            // sent into a dead connection and silently dropped, even though
-            // incoming messages (listened for on every attempt) still
-            // arrived. That is exactly the one-way failure reported.
-            var prev = conn;
-            conn = c;
-            if (prev && prev !== c){ try { prev.close(); } catch(e){} }
-            remoteMsgs = {}; // a fresh connection starts with a clean dedupe table
-            setConn("on");
-            recLang = myLang;
-            if (listenOn) restartRecognitionSoon(60);
-            $("inviteBar").classList.add("hidden");
-            try { c.send({ type: "hello", lang: myLang }); } catch(e){}
-            // flush anything spoken while the channel was still connecting
-            flushPending();
-            if (!isHost) startMediaCall();
-          });
-          c.on("data", function(data){
-            if (!data || typeof data !== "object") return;
-            if (data.type === "hello"){
-              if (isHost && !mediaStarted && localStream) startHostCallBack();
-            } else if (data.type === "msg"){
-              receiveRemoteMsg(data);
-            } else if (data.type === "trans"){
-              receiveRemoteTrans(data);
-            }
-          });
-          c.on("close", function(){
-            if (connAttempt === c) connAttemptDead = true;
-            if (conn === c) conn = null;
-            setConn("wait");
-          });
-          c.on("error", function(){
-            if (connAttempt === c) connAttemptDead = true;
-          });
-        }
-        /* Cap the OUTGOING video bitrate/framerate on the actual
-           RTCPeerConnection once a call exists: capture constraints alone
-           don't stop the encoder from pushing a high bitrate. ~550 kbps
-           is plenty for 480p and keeps both phones and the network light. */
-        function limitSenderBitrate(call){
-          try {
-            var pc = call && call.peerConnection;
-            if (!pc || !pc.getSenders) return;
-            pc.getSenders().forEach(function(sender){
-              if (!sender.track || sender.track.kind !== "video") return;
-              try {
-                var params = sender.getParameters() || {};
-                if (!params.encodings || !params.encodings.length) params.encodings = [{}];
-                params.encodings[0].maxBitrate = 550000;
-                params.encodings[0].maxFramerate = 20;
-                var p = sender.setParameters(params);
-                if (p && p.catch) p.catch(function(){});
-              } catch(e){}
-            });
-          } catch(e){}
-        }
-        function wireCall(call){
-          mediaCall = call;
-          call.on("stream", function(remoteStream){
-            remoteVideo.srcObject = remoteStream;
-            $("stageNote").classList.add("hidden");
-            setConn("on");
-            limitSenderBitrate(call);
-            setTimeout(function(){ limitSenderBitrate(call); }, 1200);
-          });
-          call.on("close", function(){
-            remoteVideo.srcObject = null;
-            $("stageNote").classList.remove("hidden");
-            $("stageT1").textContent = "对方已离开";
-            $("stageT2").textContent = "Đối phương đã rời đi";
-          });
-          call.on("error", function(){});
-        }
-        function startMediaCall(){
-          if (mediaStarted || !peer) return;
-          mediaStarted = true;
-          if (!localStream) return;
-          try { var call = peer.call(hostId(), localStream); if (call) wireCall(call); } catch(e){}
-        }
-        function startHostCallBack(){
-          if (mediaStarted || !peer) return;
-          mediaStarted = true;
-          try { var call = peer.call(guestId(), localStream); if (call) wireCall(call); } catch(e){}
-        }
-
-        var retryTimer = null, retryCount = 0;
-        function tryGuestConnect(){
-          if (!peer || peer.destroyed) return;
-          if (conn && conn.open) return;
-          if (connAttempt && !connAttemptDead && (Date.now() - connAttemptAt < 10000)){
-            // An attempt is still in flight: wait for it instead of spawning
-            // a parallel connection that shadows the working one.
-            clearTimeout(retryTimer);
-            retryTimer = setTimeout(tryGuestConnect, 3000);
-            return;
-          }
-          if (connAttempt){ try { connAttempt.close(); } catch(e){} connAttempt = null; connAttemptDead = true; }
-          var c;
-          try { c = peer.connect(hostId(), { reliable: true }); } catch(e){ scheduleRetry(); return; }
-          wireConn(c);
-          setTimeout(function(){ if (!(conn && conn.open)) scheduleRetry(); }, 6000);
-        }
-        function scheduleRetry(){
-          if (isHost || !peer || peer.destroyed) return;
-          if (conn && conn.open) return;
-          retryCount++;
-          if (retryCount > 40){ setConn(""); return; }
-          clearTimeout(retryTimer);
-          retryTimer = setTimeout(tryGuestConnect, 3000);
-        }
-        function initPeer(myId){
-          if (typeof Peer === "undefined"){ setConn(""); return; }
-          peer = new Peer(myId, { debug: 0 });
-          peer.on("open", function(){
-            setConn("wait");
-            if (!isHost) tryGuestConnect();
-          });
-          peer.on("connection", function(c){ if (isHost) wireConn(c); });
-          peer.on("call", function(call){
-            mediaStarted = true;
-            if (localStream) call.answer(localStream); else call.answer();
-            wireCall(call);
-          });
-          peer.on("error", function(err){
-            var t = err && err.type ? err.type : "";
-            if (t === "peer-unavailable" && !isHost) scheduleRetry();
-            else if (t === "unavailable-id") setConn("");
-          });
-          peer.on("disconnected", function(){ try { peer.reconnect(); } catch(e){} });
-        }
-
-        /* ---------- invite link ---------- */
-        function fallbackCopy(text){
-          var ta = document.createElement("textarea");
-          ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
-          document.body.appendChild(ta); ta.select();
-          try { document.execCommand("copy"); } catch(e){}
-          document.body.removeChild(ta);
-        }
-        function copyText(text, okMsg){
-          if (navigator.clipboard && navigator.clipboard.writeText){
-            navigator.clipboard.writeText(text).then(function(){ toast(okMsg); }, function(){ fallbackCopy(text); toast(okMsg); });
-          } else { fallbackCopy(text); toast(okMsg); }
-        }
-        /* The invite link is built from the call page's published address,
-           not from whatever address this copy of the page happens to be
-           opened at — a preview/internal address would be a dead link for
-           the partner. Only the room code and the partner's language vary. */
-        var PUBLISHED_BASE = "https://zhong-yue-tong-hua-fanyi.vercel.app/";
-        function inviteLink(){
-          return PUBLISHED_BASE + "?room=" + roomCode + "&peerlang=" + (myLang === "zh" ? "vi" : "zh");
-        }
-        function copyInviteLink(){
-          if (!roomCode) return;
-          copyText(inviteLink(), "已复制邀请链接，发给对方点开就能进来 · Đã sao chép liên kết mời");
-        }
-        /* QR code of the very same invite link: the partner scans it with
-           their phone camera and lands straight in this room (the page
-           already auto-joins on ?room=). Generated in-page by the qrcodejs
-           CDN script; if that script failed to load, the box stays hidden
-           and the copy-link button below still works. */
-        function renderInviteQr(){
-          var box = $("inviteQr"), cap = $("inviteQrCap");
-          if (!box) return;
-          box.innerHTML = "";
-          if (!roomCode || typeof QRCode === "undefined"){
-            box.style.display = "none"; if (cap) cap.style.display = "none"; return;
-          }
-          box.style.display = ""; if (cap) cap.style.display = "";
-          try {
-            new QRCode(box, {
-              text: inviteLink(),
-              width: 168,
-              height: 168,
-              correctLevel: QRCode.CorrectLevel.M
-            });
-          } catch(e){ box.style.display = "none"; if (cap) cap.style.display = "none"; }
-        }
-        $("copyLinkBtn").addEventListener("click", copyInviteLink);
-        /* tap room pill: copy the invite link too */
-        $("roomPill").addEventListener("click", function(){
-          if (!roomCode) return;
-          copyInviteLink();
-        });
-
-        /* ---------- boot: start screen first; ?room= links join directly ---------- */
-        var started = false;
-        function startRoom(code, host){
-          if (started) return;
-          started = true;
-          roomCode = code; isHost = host;
-          recLang = myLang;
-          $("roomPillTxt").textContent = roomCode;
-          $("inviteRoomCode").textContent = roomCode;
-          $("lobby").classList.add("hidden");
-          if (isHost){ $("inviteBar").classList.remove("hidden"); renderInviteQr(); }
-          try {
-            var params = new URLSearchParams(window.location.search);
-            params.set("room", roomCode);
-            params.set("peerlang", myLang);
-            window.history.replaceState(null, "", window.location.pathname + "?" + params.toString());
-          } catch(e){}
-          setConn("wait");
-          getMedia().then(function(stream){
-            // Only a granted camera/mic starts the session. On denial the
-            // blocked panel is already up (see getMedia) and its 重新授权
-            // button calls beginSession once permission is granted.
-            if (stream) beginSession();
-          });
-        }
-        $("createBtn").addEventListener("click", function(){
-          startRoom(genCode(), true);
-        });
-        $("joinBtn").addEventListener("click", function(){
-          $("lobbyActions").classList.add("hidden");
-          $("friendPanel").classList.add("hidden");
-          $("friendChoicePanel").classList.add("hidden");
-          $("joinPanel").classList.remove("hidden");
-          $("joinErr").textContent = "";
-          setTimeout(function(){ try { $("roomInput").focus(); } catch(e){} }, 60);
-        });
-        $("joinBackBtn").addEventListener("click", function(){
-          $("joinPanel").classList.add("hidden");
-          $("lobbyActions").classList.remove("hidden");
-        });
-        function cleanRoomInput(){
-          return $("roomInput").value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-        }
-        $("roomInput").addEventListener("input", function(){
-          var v = cleanRoomInput();
-          if ($("roomInput").value !== v) $("roomInput").value = v;
-          if (v.length === 6) $("joinErr").textContent = "";
-        });
-        function tryJoinFromInput(){
-          var code = cleanRoomInput();
-          if (code.length !== 6){
-            $("joinErr").textContent = "房间号是 6 位，请检查 · Mã phòng gồm 6 ký tự";
-            return;
-          }
-          startRoom(code, false);
-        }
-        $("joinGoBtn").addEventListener("click", tryJoinFromInput);
-        $("roomInput").addEventListener("keydown", function(ev){
-          if (ev.key === "Enter"){ ev.preventDefault(); tryJoinFromInput(); }
-        });
-
-        var urlRoom = getParam("room");
-        var urlPeerLang = getParam("peerlang");
-        if (urlPeerLang === "zh" || urlPeerLang === "vi"){
-          // peerlang in an invite link IS the joiner's own language
-          // (inviteLink sends the opposite of the host's language).
-          // Do not invert it again: the Vietnamese partner must land on vi.
-          myLang = urlPeerLang;
-          recLang = myLang;
-          renderLangPill();
-          renderLobbyLang();
-        }
-        var bootCode = urlRoom ? urlRoom.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) : "";
-        if (bootCode.length === 6){
-          // Opened from an invite link (or a QR scan): the room code is
-          // pre-filled in the join panel, so joining is a single tap on
-          // 加入 — but the call does NOT start by itself. Camera/mic may
-          // only be requested from a user tap: an auto-request at page
-          // load is exactly what lost the authorisation when the page
-          // was opened inside a chat app's browser.
-          $("roomInput").value = bootCode;
-          $("lobbyActions").classList.add("hidden");
-          $("joinPanel").classList.remove("hidden");
-        }
-        // otherwise the start screen stays up until 创建房间 / 加入房间 is tapped
-
-        /* ---------- friends: one fixed room code per friend ----------
-           Stored on this phone only (localStorage), so the list survives
-           refresh / reopen. Each friend entry owns one permanent 6-char
-           room code:
-           - host:true  — this phone generated the code; tapping the friend
-             opens that room as host and waits, exactly like 创建房间.
-           - host:false — the code came from the partner; tapping joins
-             their room as guest, exactly like 加入房间.
-           Either way it is one tap on the name: no QR scan, no typing.
-           The code only has to be shared once, when the friend is added;
-           the copy button on each row is for that first share. */
-        var FRIENDS_KEY = "zhyuetong-friends-v1";
-        function loadFriends(){
-          try {
-            var raw = window.localStorage ? window.localStorage.getItem(FRIENDS_KEY) : null;
-            var arr = raw ? JSON.parse(raw) : [];
-            if (!arr || Object.prototype.toString.call(arr) !== "[object Array]") return [];
-            var out = [];
-            for (var i = 0; i < arr.length; i++){
-              var f = arr[i];
-              if (!f || !f.name) continue;
-              var code = String(f.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-              if (code.length !== 6) continue;
-              out.push({ name: String(f.name), code: code, host: !!f.host });
-            }
-            return out;
-          } catch(e){ return []; }
-        }
-        function persistFriends(){
-          try {
-            if (window.localStorage) window.localStorage.setItem(FRIENDS_KEY, JSON.stringify(friends));
-          } catch(e){}
-        }
-        var friends = loadFriends();
-        function renderFriends(){
-          var list = $("friendList");
-          if (!list) return;
-          list.innerHTML = "";
-          $("friendEmpty").style.display = friends.length ? "none" : "";
-          friends.forEach(function(f, idx){
-            var row = document.createElement("div");
-            row.className = "friend-row";
-            row.setAttribute("role", "button");
-            row.setAttribute("tabindex", "0");
-            var av = document.createElement("div");
-            av.className = "friend-avatar";
-            av.textContent = f.name.slice(0, 1) || "?";
-            var main = document.createElement("div");
-            main.className = "friend-main";
-            var nm = document.createElement("div");
-            nm.className = "friend-name"; nm.textContent = f.name;
-            var sub = document.createElement("div");
-            sub.className = "friend-sub";
-            sub.textContent = "房间号 " + f.code + " · 点一下选通话或聊天 · Bấm để chọn gọi hoặc nhắn tin";
-            main.appendChild(nm); main.appendChild(sub);
-            var copyBtn = document.createElement("button");
-            copyBtn.className = "friend-act"; copyBtn.type = "button";
-            copyBtn.title = "复制房间号 · Sao chép mã phòng";
-            copyBtn.setAttribute("aria-label", "复制房间号 · Sao chép mã phòng");
-            copyBtn.textContent = "⧉";
-            copyBtn.addEventListener("click", function(ev){
-              ev.stopPropagation();
-              copyText(f.code, "已复制房间号 " + f.code + "，发给对方一次就行 · Đã sao chép mã phòng");
-            });
-            var delBtn = document.createElement("button");
-            delBtn.className = "friend-act del"; delBtn.type = "button";
-            delBtn.title = "删除好友 · Xóa bạn bè";
-            delBtn.setAttribute("aria-label", "删除好友 · Xóa bạn bè");
-            delBtn.textContent = "✕";
-            delBtn.addEventListener("click", function(ev){
-              ev.stopPropagation();
-              destroyChatPeer(f.code);
-              friends.splice(idx, 1);
-              persistFriends();
-              renderFriends();
-              toast("已删除好友 · Đã xóa bạn bè");
-            });
-            row.appendChild(av); row.appendChild(main); row.appendChild(copyBtn); row.appendChild(delBtn);
-            function dial(){ openFriendChoice(f); }
-            row.addEventListener("click", dial);
-            row.addEventListener("keydown", function(ev){
-              if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); dial(); }
-            });
-            list.appendChild(row);
-          });
-        }
-        renderFriends();
-
-        /* add-friend panel: the code field decides the role. While the
-           field still holds the auto-generated code (or a dice re-roll),
-           this phone is the room's host; if the user types over it with a
-           code the partner gave them, this phone joins as guest. */
-        var friendGenMode = true;
-        function cleanFriendCode(){
-          return $("friendCodeInput").value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
-        }
-        $("addFriendBtn").addEventListener("click", function(){
-          $("lobbyActions").classList.add("hidden");
-          $("joinPanel").classList.add("hidden");
-          $("friendChoicePanel").classList.add("hidden");
-          $("friendPanel").classList.remove("hidden");
-          $("friendErr").textContent = "";
-          $("friendNameInput").value = "";
-          friendGenMode = true;
-          $("friendCodeInput").value = genCode();
-          setTimeout(function(){ try { $("friendNameInput").focus(); } catch(e){} }, 60);
-        });
-        $("friendBackBtn").addEventListener("click", function(){
-          $("friendPanel").classList.add("hidden");
-          $("lobbyActions").classList.remove("hidden");
-        });
-        $("friendDiceBtn").addEventListener("click", function(){
-          friendGenMode = true;
-          $("friendCodeInput").value = genCode();
-          $("friendErr").textContent = "";
-        });
-        $("friendCodeInput").addEventListener("input", function(){
-          var v = cleanFriendCode();
-          if ($("friendCodeInput").value !== v) $("friendCodeInput").value = v;
-          // typing a code of their own means it is the partner's room
-          friendGenMode = false;
-          if (v.length === 6) $("friendErr").textContent = "";
-        });
-        $("friendSaveBtn").addEventListener("click", function(){
-          var name = $("friendNameInput").value.replace(/^\s+|\s+$/g, "");
-          if (!name){
-            $("friendErr").textContent = "先填好友名字 · Hãy nhập tên bạn bè";
-            return;
-          }
-          var code = cleanFriendCode();
-          var host = friendGenMode;
-          if (!code){ code = genCode(); host = true; }
-          if (code.length !== 6){
-            $("friendErr").textContent = "房间号是 6 位，请检查 · Mã phòng gồm 6 ký tự";
-            return;
-          }
-          // one entry per room code: re-adding a code updates that friend
-          var existing = -1;
-          for (var i = 0; i < friends.length; i++){ if (friends[i].code === code){ existing = i; break; } }
-          var entry = { name: name, code: code, host: host };
-          if (existing >= 0) friends[existing] = entry; else friends.push(entry);
-          persistFriends();
-          ensureChatPeer(entry);
-          renderFriends();
-          $("friendPanel").classList.add("hidden");
-          $("lobbyActions").classList.remove("hidden");
-          toast(host
-            ? "已保存 · 把房间号 " + code + " 发给对方一次 · Đã lưu, gửi mã phòng cho đối phương một lần"
-            : "已保存 · 点名字就能通话 · Đã lưu, bấm vào tên để gọi");
-        });
-
-        /* ---------- friend choice: 语音通话 / 打字聊天 ---------- */
-        var choiceFriend = null;
-        function openFriendChoice(f){
-          choiceFriend = f;
-          $("choiceFriendName").textContent = f.name;
-          $("lobbyActions").classList.add("hidden");
-          $("joinPanel").classList.add("hidden");
-          $("friendPanel").classList.add("hidden");
-          $("friendChoicePanel").classList.remove("hidden");
-        }
-        $("choiceBackBtn").addEventListener("click", function(){
-          $("friendChoicePanel").classList.add("hidden");
-          $("lobbyActions").classList.remove("hidden");
-        });
-        $("choiceCallBtn").addEventListener("click", function(){
-          if (!choiceFriend) return;
-          $("friendChoicePanel").classList.add("hidden");
-          $("lobbyActions").classList.remove("hidden");
-          startRoom(choiceFriend.code, !!choiceFriend.host);
-        });
-        $("choiceChatBtn").addEventListener("click", function(){
-          if (!choiceFriend) return;
-          openChat(choiceFriend);
-        });
-
-        /* ================================================================
-           TEXT CHAT with a friend (v12) — typed messages, auto-translated.
-           - Transport: PeerJS data channel only (there is no server), so
-             BOTH phones must have the app open for a message to arrive.
-           - IDs are derived from the friend's fixed room code, in a
-             separate namespace from the call IDs so chat and call peers
-             never collide: the room host listens on "<code>-host" and
-             dials "<code>-guest"; the guest listens on "<code>-guest"
-             and dials "<code>-host". A background listener peer is
-             created for every friend as soon as the app opens.
-           - The SENDER translates first (same Gemini endpoint chain as
-             the call) and sends { orig, trans } together, so the receiver
-             shows 原文 + 译文 at once. If the sender's translation failed,
-             the receiver translates the original on its own phone.
-           - History is kept on this phone only, in localStorage, one
-             list per friend code.
-           ================================================================ */
-        var CHAT_PREFIX = "zhyuetong-chat-v1-";
-        var CHAT_HIST_PREFIX = "zhyuetong-chat-hist-v1-";
-        var chatPeers = {};   // code -> { friend, peer, conn, connecting, failConnect }
-        var chatFriend = null; // friend whose chat screen is open
-
-        function myChatId(f){ return CHAT_PREFIX + f.code + (f.host ? "-host" : "-guest"); }
-        function peerChatId(f){ return CHAT_PREFIX + f.code + (f.host ? "-guest" : "-host"); }
-
-        function loadChatHistory(code){
-          try {
-            var raw = window.localStorage ? window.localStorage.getItem(CHAT_HIST_PREFIX + code) : null;
-            var arr = raw ? JSON.parse(raw) : [];
-            return Object.prototype.toString.call(arr) === "[object Array]" ? arr : [];
-          } catch(e){ return []; }
-        }
-        function appendChatHistory(code, entry){
-          try {
-            var arr = loadChatHistory(code);
-            arr.push(entry);
-            if (arr.length > 300) arr = arr.slice(arr.length - 300);
-            if (window.localStorage) window.localStorage.setItem(CHAT_HIST_PREFIX + code, JSON.stringify(arr));
-          } catch(e){}
-        }
-
-        function setChatState(mode){
-          var el = $("chatState");
-          if (!el) return;
-          var dot = mode === "on" ? "on" : mode === "wait" ? "wait" : "";
-          var txt = mode === "on" ? "对方在线 · Đối phương đang trực tuyến"
-            : mode === "off" ? "对方不在线 · Đối phương không trực tuyến（没打开 App）"
-            : "正在连接… · Đang kết nối…";
-          el.innerHTML = "";
-          var d = document.createElement("span"); d.className = "dot " + dot;
-          el.appendChild(d); el.appendChild(document.createTextNode(txt));
-        }
-        function fmtTime(ts){
-          try {
-            var d = new Date(ts || Date.now());
-            var h = d.getHours(), m = d.getMinutes();
-            return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
-          } catch(e){ return ""; }
-        }
-        function appendChatMsgEl(entry){
-          var box = $("chatMessages");
-          var empty = box.querySelector(".chat-empty");
-          if (empty) empty.parentNode.removeChild(empty);
-          var div = document.createElement("div");
-          div.className = "chat-msg " + (entry.dir === "me" ? "me" : "peer");
-          var o = document.createElement("div");
-          o.className = "orig"; o.textContent = entry.orig || "";
-          var t = document.createElement("div");
-          t.className = "trans" + (entry.pending ? " pending-txt" : "");
-          t.textContent = entry.pending ? "Đang dịch… / 正在翻译…"
-            : entry.trans ? entry.trans
-            : entry.transFail ? "Dịch thất bại · 翻译失败（上面是原话）" : "";
-          var meta = document.createElement("div");
-          meta.className = "meta" + (entry.failed ? " fail" : "");
-          meta.textContent = fmtTime(entry.ts) + (entry.failed ? " · 对方不在线，未送达 · Không gửi được" : "");
-          div.appendChild(o); div.appendChild(t); div.appendChild(meta);
-          box.appendChild(div);
-          box.scrollTop = box.scrollHeight;
-          return { root: div, transEl: t, metaEl: meta };
-        }
-        function renderChatHistory(){
-          var box = $("chatMessages");
-          box.innerHTML = "";
-          if (!chatFriend) return;
-          var arr = loadChatHistory(chatFriend.code);
-          if (!arr.length){
-            var e = document.createElement("div");
-            e.className = "chat-empty";
-            e.textContent = "还没有消息。打中文发过去，对方看到的是中文原文 + 越南文翻译；对方回越南文，你这边看到原文 + 中文翻译。对方要打开 App 才能收到。";
-            box.appendChild(e);
-            return;
-          }
-          arr.forEach(function(entry){ appendChatMsgEl(entry); });
-          box.scrollTop = box.scrollHeight;
-        }
-
-        function markChatOffline(f){
-          var st = chatPeers[f.code];
-          if (st && st.failConnect) st.failConnect();
-          if (chatFriend && chatFriend.code === f.code) setChatState("off");
-        }
-        function wireChatConn(f, c){
-          var st = chatPeers[f.code];
-          if (!st) return;
-          c.on("open", function(){
-            var prev = st.conn;
-            st.conn = c;
-            if (prev && prev !== c){ try { prev.close(); } catch(e){} }
-            if (chatFriend && chatFriend.code === f.code) setChatState("on");
-          });
-          c.on("data", function(data){
-            if (data && data.type === "chat-msg") receiveChatMsg(f, data);
-          });
-          c.on("close", function(){
-            if (st.conn === c) st.conn = null;
-            if (chatFriend && chatFriend.code === f.code) setChatState("wait");
-          });
-          c.on("error", function(){});
-        }
-        function ensureChatPeer(f){
-          if (typeof Peer === "undefined") return null;
-          var st = chatPeers[f.code];
-          if (st && st.peer && !st.peer.destroyed) return st;
-          st = { friend: f, peer: null, conn: null, connecting: null, failConnect: null };
-          chatPeers[f.code] = st;
-          var p;
-          try { p = new Peer(myChatId(f), { debug: 0 }); } catch(e){ return st; }
-          st.peer = p;
-          p.on("connection", function(c){ wireChatConn(f, c); });
-          p.on("error", function(err){
-            if (err && err.type === "peer-unavailable") markChatOffline(f);
-          });
-          p.on("disconnected", function(){ try { p.reconnect(); } catch(e){} });
-          return st;
-        }
-        function destroyChatPeer(code){
-          var st = chatPeers[code];
-          if (!st) return;
-          try { if (st.conn) st.conn.close(); } catch(e){}
-          try { if (st.peer) st.peer.destroy(); } catch(e){}
-          delete chatPeers[code];
-        }
-        function connectChat(f){
-          var st = ensureChatPeer(f);
-          if (!st || !st.peer) return Promise.resolve(null);
-          if (st.conn && st.conn.open) return Promise.resolve(st.conn);
-          if (st.connecting) return st.connecting;
-          st.connecting = new Promise(function(resolve){
-            var done = false;
-            function finish(v){
-              if (done) return; done = true;
-              st.connecting = null; st.failConnect = null;
-              resolve(v);
-            }
-            st.failConnect = function(){ finish(null); };
-            var c;
-            try { c = st.peer.connect(peerChatId(f), { reliable: true }); }
-            catch(e){ finish(null); return; }
-            wireChatConn(f, c);
-            c.on("open", function(){ finish(c); });
-            setTimeout(function(){ finish(st.conn && st.conn.open ? st.conn : null); }, 7000);
-          });
-          return st.connecting;
-        }
-        function receiveChatMsg(f, data){
-          var from = data.from === "vi" ? "vi" : "zh";
-          var entry = {
-            dir: "peer", orig: data.orig || "", trans: data.trans || "",
-            from: from, ts: data.ts || Date.now(), id: data.id, sess: data.sess || ""
-          };
-          var hist = loadChatHistory(f.code);
-          for (var i = 0; i < hist.length; i++){
-            if (hist[i].id === entry.id && hist[i].sess === entry.sess && entry.id !== undefined) return; // duplicate
-          }
-          function store(){
-            appendChatHistory(f.code, entry);
-            if (chatFriend && chatFriend.code === f.code){
-              appendChatMsgEl(entry);
-              setChatState("on");
-            } else {
-              toast("💬 " + f.name + "：" + (entry.orig || "").slice(0, 20));
-            }
-          }
-          if (entry.trans){ store(); return; }
-          // Sender's translation failed: translate the original here.
-          translateText(entry.orig, from, from === "zh" ? "vi" : "zh")
-            .then(function(trans){ entry.trans = trans; store(); })
-            .catch(function(){ entry.transFail = true; store(); });
-        }
-        function openChat(f){
-          chatFriend = f;
-          $("friendChoicePanel").classList.add("hidden");
-          $("lobbyActions").classList.remove("hidden");
-          $("lobby").classList.add("hidden");
-          $("chatScreen").classList.remove("hidden");
-          $("chatFriendName").textContent = f.name;
-          var st = ensureChatPeer(f);
-          setChatState(st && st.conn && st.conn.open ? "on" : "wait");
-          renderChatHistory();
-          connectChat(f);
-          setTimeout(function(){ try { $("chatInput").focus(); } catch(e){} }, 80);
-        }
-        $("chatBackBtn").addEventListener("click", function(){
-          chatFriend = null;
-          $("chatScreen").classList.add("hidden");
-          $("lobby").classList.remove("hidden");
-        });
-        var chatSending = false;
-        function sendChat(){
-          if (!chatFriend || chatSending) return;
-          var input = $("chatInput");
-          var text = input.value.replace(/^\s+|\s+$/g, "");
-          if (!text) return;
-          var f = chatFriend;
-          chatSending = true;
-          $("chatSendBtn").disabled = true;
-          input.value = "";
-          input.style.height = "auto";
-          var from = myLang, to = from === "zh" ? "vi" : "zh";
-          var entry = {
-            dir: "me", orig: text, trans: "", from: from,
-            ts: Date.now(), id: ++msgSeq, sess: mySess, pending: true
-          };
-          var els = appendChatMsgEl(entry);
-          function deliver(trans){
-            connectChat(f).then(function(c){
-              var ok = false;
-              if (c && c.open){
-                try {
-                  c.send({ type: "chat-msg", sess: entry.sess, id: entry.id, from: from, orig: text, trans: trans || "", ts: entry.ts });
-                  ok = true;
-                } catch(e){}
-              }
-              entry.failed = !ok;
-              appendChatHistory(f.code, {
-                dir: "me", orig: entry.orig, trans: entry.trans, from: entry.from,
-                ts: entry.ts, id: entry.id, sess: entry.sess, failed: entry.failed
-              });
-              if (!ok){
-                els.metaEl.className = "meta fail";
-                els.metaEl.textContent = fmtTime(entry.ts) + " · 对方不在线，未送达 · Không gửi được";
-                if (chatFriend && chatFriend.code === f.code) setChatState("off");
-                toast("对方不在线 · Đối phương không trực tuyến");
-              }
-              chatSending = false;
-              $("chatSendBtn").disabled = false;
-            });
-          }
-          // Translate FIRST (the shared Gemini endpoint chain), then send
-          // 原文 + 译文 together so the receiver shows both at once.
-          translateText(text, from, to)
-            .then(function(trans){
-              entry.trans = trans; entry.pending = false;
-              els.transEl.classList.remove("pending-txt");
-              els.transEl.textContent = trans;
-              deliver(trans);
-            })
-            .catch(function(){
-              entry.pending = false; entry.transFail = true;
-              els.transEl.classList.remove("pending-txt");
-              els.transEl.textContent = "Dịch thất bại · 翻译失败（只发原文，对方那边会再翻译）";
-              deliver("");
-            });
-        }
-        $("chatSendBtn").addEventListener("click", sendChat);
-        $("chatInput").addEventListener("keydown", function(ev){
-          if (ev.key === "Enter" && !ev.shiftKey){ ev.preventDefault(); sendChat(); }
-        });
-        $("chatInput").addEventListener("input", function(){
-          var el = $("chatInput");
-          el.style.height = "auto";
-          el.style.height = Math.min(el.scrollHeight, 110) + "px";
-        });
-        // Background listeners: from the moment the app opens, each
-        // friend's chat ID is being listened on, so a message can arrive
-        // whenever both phones have the app open.
-        friends.forEach(function(f){ ensureChatPeer(f); });
-
-        /* ---------- hang up ---------- */
-        $("hangupBtn").addEventListener("click", function(){
-          setListen(false);
-          $("inviteBar").classList.add("hidden");
-          if ("speechSynthesis" in window){ try { window.speechSynthesis.cancel(); } catch(e){} }
-          clearTimeout(retryTimer); clearTimeout(restartTimer);
-          try { if (conn) conn.close(); } catch(e){}
-          try { if (connAttempt && connAttempt !== conn) connAttempt.close(); } catch(e){}
-          try { if (mediaCall) mediaCall.close(); } catch(e){}
-          try { if (peer) peer.destroy(); } catch(e){}
-          conn = null; connAttempt = null; pendingOut = []; remoteMsgs = {}; mediaCall = null; peer = null;
-          if (localStream){
-            localStream.getTracks().forEach(function(t){ t.stop(); });
-            localStream = null;
-          }
-          localVideo.srcObject = null; remoteVideo.srcObject = null;
-          // Drop the room code from the address right away: startRoom wrote
-          // ?room= into it, and the boot code pre-fills the join panel from
-          // any ?room= it finds. Without this, "重新开始" (or any refresh)
-          // would bring this phone back facing the OLD room's join panel
-          // instead of a clean start screen where it can create a room of
-          // its own. Keep just the language choice so the start screen
-          // comes back in the right language.
-          try {
-            window.history.replaceState(null, "", window.location.pathname + "?peerlang=" + myLang);
-          } catch(e){}
-          $("endedOverlay").classList.remove("hidden");
-        });
-        $("restartBtn").addEventListener("click", function(){
-          // Back to a clean start screen — same screen on both phones:
-          // 创建房间 and 加入房间 both work, creating makes this phone the
-          // host with a fresh code, QR code and copy-link. The ?peerlang=
-          // keeps only the language choice; with no ?room= the boot code
-          // stays on the start screen instead of auto-joining the old room.
-          try { window.location.replace(window.location.pathname + "?peerlang=" + myLang); }
-          catch(e){ window.location.reload(); }
-        });
-        window.addEventListener("beforeunload", function(){
-          try { if (peer) peer.destroy(); } catch(e){}
-        });
-      })();
-    </script>
-  </body>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark light" />
+<link rel="icon" href="data:," />
+<title>中越通话实时翻译 · Dịch cuộc gọi Trung–Việt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{
+--ink:#ffffff;
+--bubble-bg:rgba(255,255,255,.86);
+--bubble-ink:#17201d;
+--bubble-sub:#3c4a46;
+--ctrl-bg:rgba(24,30,28,.62);
+--ctrl-off:rgba(24,30,28,.38);
+--red:#e23a2e;
+--red-dark:#c62a20;
+--green:#35d07f;
+--amber:#f5b544;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0a0f0e}
+body{
+font-family:"Be Vietnam Pro","Noto Sans SC",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+color:var(--ink);
+-webkit-font-smoothing:antialiased;
+}
+.call{position:fixed;inset:0;height:100dvh;overflow:hidden;background:#0a0f0e}
+#remoteVideo{
+position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#0a0f0e;z-index:1;
+}
+.stage-bg{
+position:absolute;inset:0;z-index:0;
+background:
+radial-gradient(120% 70% at 50% 0%, #2a3f3a 0%, rgba(42,63,58,0) 60%),
+radial-gradient(ellipse at 50% 42%, #22332f 0%, #0a0f0e 78%);
+}
+.stage-note{
+position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;gap:8px;
+align-items:center;justify-content:center;text-align:center;padding:24px;pointer-events:none;
+}
+.stage-note .t1{font-size:19px;font-weight:800;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+.stage-note .t2{font-size:13.5px;color:#b9cdc8;max-width:300px;line-height:1.6}
+.stage-note.hidden{display:none}
+#localVideo{
+position:absolute;z-index:6;top:calc(env(safe-area-inset-top, 0px) + 62px);right:12px;
+width:27%;max-width:138px;aspect-ratio:3/4;object-fit:cover;
+border-radius:14px;border:2px solid rgba(255,255,255,.65);
+box-shadow:0 8px 24px rgba(0,0,0,.45);background:#111;
+}
+@media (min-width:700px){
+#localVideo{width:180px;max-width:180px;aspect-ratio:4/3}
+}
+.topbar{
+position:absolute;z-index:8;top:0;left:0;right:0;
+padding:calc(env(safe-area-inset-top, 0px) + 10px) 12px 0;
+display:flex;align-items:flex-start;gap:8px;
+}
+.lang-pill{
+margin:0 auto;appearance:none;border:none;cursor:pointer;font-family:inherit;
+display:inline-flex;align-items:center;gap:10px;
+background:rgba(20,26,24,.55);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+color:#fff;font-size:15.5px;font-weight:700;letter-spacing:.2px;
+padding:10px 18px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.35);
+max-width:100%;
+}
+.lang-pill .swap{font-size:15px;opacity:.85;flex:none}
+.lang-pill .cur{color:#8fe3c8}
+.room-pill{
+position:absolute;left:12px;top:calc(env(safe-area-inset-top, 0px) + 10px);
+appearance:none;border:none;cursor:pointer;font-family:inherit;
+display:inline-flex;align-items:center;gap:6px;
+background:rgba(20,26,24,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+color:rgba(255,255,255,.92);font-size:11.5px;font-weight:700;letter-spacing:1px;
+padding:7px 10px;border-radius:999px;
+}
+.room-pill .dot{width:8px;height:8px;border-radius:50%;background:#9aa7a3;flex:none}
+.room-pill .dot.wait{background:var(--amber)}
+.room-pill .dot.on{background:var(--green)}
+@media (max-width:560px){
+.topbar{justify-content:center}
+.room-pill{left:8px;top:calc(env(safe-area-inset-top, 0px) + 58px);padding:6px 8px;font-size:10.5px}
+.lang-pill{font-size:13.5px;padding:9px 13px;gap:7px}
+}
+.subtitles{
+position:absolute;z-index:5;left:0;right:0;
+top:24%;bottom:138px;
+display:flex;flex-direction:column;justify-content:flex-end;gap:10px;
+padding:10px 14px;overflow-y:auto;overscroll-behavior:contain;
+scrollbar-width:none;
+-webkit-mask-image:linear-gradient(to bottom, transparent 0, #000 46px);
+mask-image:linear-gradient(to bottom, transparent 0, #000 46px);
+}
+.subtitles::-webkit-scrollbar{display:none}
+.bubble{
+max-width:84%;padding:10px 14px 11px;border-radius:16px;
+background:var(--bubble-bg);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+color:var(--bubble-ink);box-shadow:0 6px 18px rgba(0,0,0,.28);
+animation:rise .25s ease both;
+}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.bubble{animation:none}}
+.bubble.from-zh{align-self:flex-start;border-bottom-left-radius:6px}
+.bubble.from-vi{align-self:flex-end;border-bottom-right-radius:6px}
+.bubble .orig{font-size:16.5px;font-weight:700;line-height:1.45;word-break:break-word}
+.bubble .trans{
+font-size:15.5px;line-height:1.5;word-break:break-word;color:var(--bubble-sub);
+margin-top:5px;padding-top:5px;border-top:1px solid rgba(23,32,29,.12);
+}
+.bubble.pending{opacity:.75}
+.bubble .trans.pending-txt{border-top:none;margin-top:2px;padding-top:0;font-size:13.5px}
+.bubble.live{outline:2px solid rgba(143,227,200,.8)}
+.bubble.live .orig{font-weight:600}
+.status-line{
+position:absolute;z-index:7;left:50%;transform:translateX(-50%);
+bottom:118px;max-width:92vw;text-align:center;
+font-size:12.5px;font-weight:600;color:rgba(255,255,255,.95);
+background:rgba(20,26,24,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+padding:6px 14px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+pointer-events:none;
+}
+.status-line.err{background:rgba(140,30,20,.75)}
+.status-line:empty{display:none}
+.controls{
+position:absolute;z-index:8;left:0;right:0;bottom:0;
+padding:10px 24px calc(env(safe-area-inset-bottom, 0px) + 22px);
+display:flex;align-items:center;justify-content:center;gap:34px;
+background:linear-gradient(to top, rgba(0,0,0,.45), rgba(0,0,0,0));
+}
+.ctrl{
+appearance:none;border:none;cursor:pointer;color:#fff;font-family:inherit;
+width:64px;height:64px;border-radius:50%;flex:none;
+background:var(--ctrl-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+display:flex;align-items:center;justify-content:center;position:relative;
+box-shadow:0 8px 22px rgba(0,0,0,.4);
+transition:background .15s, transform .08s, opacity .15s;
+}
+.ctrl:active{transform:scale(.95)}
+.ctrl svg{width:28px;height:28px}
+.ctrl.off{opacity:.55;background:var(--ctrl-off)}
+.ctrl.off::after{
+content:"";position:absolute;left:12px;right:12px;top:50%;height:2.5px;border-radius:2px;
+background:#ff6d5e;transform:rotate(-38deg);
+}
+#micBtn.listening{background:#0b6e63}
+#micBtn.listening::before{
+content:"";position:absolute;inset:-7px;border-radius:50%;
+border:2px solid rgba(53,208,127,.75);animation:pulse 1.4s ease-out infinite;
+}
+@keyframes pulse{0%{transform:scale(.85);opacity:1}100%{transform:scale(1.25);opacity:0}}
+@media (prefers-reduced-motion: reduce){#micBtn.listening::before{animation:none}}
+#hangupBtn{
+width:76px;height:76px;background:var(--red);
+}
+#hangupBtn:hover{background:var(--red-dark)}
+#hangupBtn svg{width:34px;height:34px;transform:rotate(135deg)}
+.lobby{
+position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;
+align-items:center;justify-content:safe center;text-align:center;padding:28px 22px;
+overflow-y:auto;overscroll-behavior:contain;
+background:
+radial-gradient(120% 70% at 50% 0%, #2a3f3a 0%, rgba(42,63,58,0) 55%),
+radial-gradient(ellipse at 50% 42%, #22332f 0%, #0a0f0e 80%);
+}
+.lobby.hidden{display:none}
+.lobby .lt1{font-size:26px;font-weight:900;line-height:1.3}
+.lobby .lt2{font-size:16px;font-weight:600;color:#8fe3c8;margin-top:6px}
+.lobby .lt3{font-size:13.5px;color:#b9cdc8;line-height:1.65;max-width:320px;margin-top:14px}
+.lang-choice{width:100%;max-width:340px;margin-top:22px}
+.lang-choice .lc-label{font-size:12.5px;font-weight:700;color:#b9cdc8;letter-spacing:.4px}
+.lang-choice .lc-row{display:flex;gap:10px;margin-top:9px}
+.lc-btn{
+appearance:none;cursor:pointer;font-family:inherit;flex:1;
+border-radius:14px;padding:13px 8px;text-align:center;
+background:rgba(255,255,255,.1);color:#fff;border:1.5px solid rgba(255,255,255,.35);
+font-size:16px;font-weight:800;transition:background .15s,border-color .15s;
+}
+.lc-btn .lc-sub{display:block;font-size:11.5px;font-weight:600;opacity:.85;margin-top:2px}
+.lc-btn.sel{background:#0b6e63;border-color:#8fe3c8}
+.lobby-actions{display:flex;flex-direction:column;gap:14px;width:100%;max-width:340px;margin-top:26px}
+.big-btn{
+appearance:none;border:none;cursor:pointer;font-family:inherit;width:100%;
+border-radius:18px;padding:20px 18px;text-align:center;
+transition:transform .08s, background .15s;
+}
+.big-btn:active{transform:scale(.98)}
+.big-btn .b1{display:block;font-size:20px;font-weight:800}
+.big-btn .b2{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:3px}
+.big-btn.create{background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
+.big-btn.create:hover{background:#0a5f55}
+.big-btn.join{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.4)}
+.big-btn.join:hover{background:rgba(255,255,255,.18)}
+.join-panel{width:100%;max-width:340px;margin-top:26px}
+.join-panel .jp-label{font-size:13px;font-weight:700;color:#b9cdc8;letter-spacing:.5px}
+#roomInput{
+width:100%;margin-top:10px;padding:16px 12px;text-align:center;
+font-family:inherit;font-size:30px;font-weight:800;letter-spacing:10px;text-transform:uppercase;
+color:#fff;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.4);border-radius:16px;
+outline:none;
+}
+#roomInput:focus{border-color:#8fe3c8;background:rgba(255,255,255,.14)}
+#roomInput::placeholder{color:rgba(255,255,255,.35);letter-spacing:10px}
+.join-panel .big-btn{margin-top:14px;background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
+.join-panel .big-btn:hover{background:#0a5f55}
+.join-err{min-height:20px;margin-top:10px;font-size:13px;font-weight:700;color:#ff9a8f}
+.friends{width:100%;max-width:340px;margin-top:22px;text-align:left}
+.friends-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.friends-head .fh-label{font-size:12.5px;font-weight:700;color:#b9cdc8;letter-spacing:.4px}
+.add-friend-btn{
+appearance:none;cursor:pointer;font-family:inherit;flex:none;
+background:rgba(11,110,99,.9);color:#fff;border:1px solid rgba(143,227,200,.5);
+border-radius:999px;padding:8px 15px;font-size:13.5px;font-weight:800;
+}
+.add-friend-btn:active{transform:scale(.97)}
+.friend-empty{font-size:12.5px;color:rgba(185,205,200,.78);line-height:1.65;margin-top:9px}
+.friend-list{margin-top:10px;display:flex;flex-direction:column;gap:8px;max-height:208px;overflow-y:auto;scrollbar-width:none}
+.friend-list::-webkit-scrollbar{display:none}
+.friend-row{
+display:flex;align-items:center;gap:11px;width:100%;text-align:left;cursor:pointer;
+background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.22);
+border-radius:14px;padding:10px 12px;color:#fff;transition:background .15s;
+}
+.friend-row:active{background:rgba(255,255,255,.2)}
+.friend-avatar{
+width:40px;height:40px;flex:none;border-radius:50%;background:#0b6e63;color:#fff;
+display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;
+}
+.friend-main{flex:1;min-width:0}
+.friend-name{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.friend-sub{font-size:11.5px;font-weight:600;color:#b9cdc8;margin-top:1px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.friend-act{
+appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
+width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
+font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0;
+}
+.friend-act:active{transform:scale(.92)}
+.friend-act.del{background:rgba(226,58,46,.28);font-size:15px}
+.friend-panel{width:100%;max-width:340px;margin-top:26px;text-align:left}
+.friend-panel .fp-label{font-size:13px;font-weight:700;color:#b9cdc8;letter-spacing:.5px}
+.fp-input{
+width:100%;margin-top:9px;padding:14px 12px;font-family:inherit;
+font-size:17px;font-weight:700;color:#fff;
+background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.4);border-radius:14px;outline:none;
+}
+.fp-input:focus{border-color:#8fe3c8;background:rgba(255,255,255,.14)}
+.fp-input::placeholder{color:rgba(255,255,255,.35)}
+.fp-note{font-size:12px;color:rgba(185,205,200,.82);line-height:1.65;margin-top:10px}
+.friend-panel .big-btn{margin-top:14px;background:#0b6e63;color:#fff;box-shadow:0 10px 26px rgba(0,0,0,.4)}
+.friend-panel .big-btn:hover{background:#0a5f55}
+.lobby .ver-tag{margin-top:28px;font-size:12px;font-weight:700;color:rgba(185,205,200,.8);letter-spacing:.6px;line-height:1.7}
+.back-link{
+appearance:none;background:none;border:none;cursor:pointer;font-family:inherit;
+color:#b9cdc8;font-size:13.5px;font-weight:700;margin-top:16px;padding:6px 10px;text-decoration:underline;
+}
+.invite-bar{
+position:absolute;z-index:9;left:50%;transform:translateX(-50%);
+bottom:226px;width:min(92vw,380px);text-align:center;
+background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+border:1.5px solid rgba(143,227,200,.45);border-radius:20px;padding:14px 16px 16px;
+box-shadow:0 12px 30px rgba(0,0,0,.45);
+}
+.invite-bar.hidden{display:none}
+.invite-bar .room-big{font-size:30px;font-weight:900;letter-spacing:7px;color:#fff;line-height:1.15}
+.invite-bar .room-cap{font-size:12px;font-weight:700;color:#b9cdc8;margin-top:2px}
+.invite-qr{
+margin:12px auto 0;width:188px;height:188px;padding:10px;background:#fff;border-radius:14px;
+display:flex;align-items:center;justify-content:center;
+}
+.invite-qr img,.invite-qr canvas,.invite-qr table{display:block;margin:0 auto}
+.invite-qr:empty{display:none}
+.invite-qr-cap{font-size:12px;font-weight:700;color:#b9cdc8;margin-top:8px}
+#copyLinkBtn{
+appearance:none;border:none;cursor:pointer;font-family:inherit;width:100%;margin-top:12px;
+background:#0b6e63;color:#fff;border-radius:14px;padding:16px 14px;
+font-size:17.5px;font-weight:800;box-shadow:0 8px 20px rgba(0,0,0,.35);
+transition:background .15s, transform .08s;
+}
+#copyLinkBtn:hover{background:#0a5f55}
+#copyLinkBtn:active{transform:scale(.98)}
+#copyLinkBtn .cb2{display:block;font-size:12.5px;font-weight:600;opacity:.85;margin-top:2px}
+@media (max-height:560px){ .invite-bar{bottom:196px} }
+.ended{
+position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;gap:14px;
+align-items:center;justify-content:center;text-align:center;padding:24px;
+background:rgba(6,10,9,.88);
+}
+.ended.hidden{display:none}
+.ended .t1{font-size:21px;font-weight:800}
+.ended .t2{font-size:14px;color:#b9cdc8}
+.ended button{
+appearance:none;border:none;cursor:pointer;font-family:inherit;font-weight:800;font-size:15.5px;
+background:#0b6e63;color:#fff;border-radius:999px;padding:14px 30px;margin-top:6px;
+}
+.toast{
+position:fixed;left:50%;top:calc(env(safe-area-inset-top, 0px) + 64px);transform:translateX(-50%) translateY(-8px);
+background:rgba(10,14,13,.88);color:#fff;padding:9px 16px;border-radius:999px;
+font-size:13px;font-weight:700;opacity:0;pointer-events:none;
+transition:opacity .25s,transform .25s;z-index:50;max-width:88vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.hidden{display:none !important}
+.media-err{
+position:absolute;inset:0;z-index:25;overflow-y:auto;
+display:flex;align-items:center;justify-content:center;
+padding:28px 22px calc(env(safe-area-inset-bottom, 0px) + 28px);
+background:rgba(6,10,9,.94);
+}
+.media-err.hidden{display:none}
+.media-err-card{width:100%;max-width:400px;text-align:center}
+.media-err-card .me-t1{font-size:23px;font-weight:900;line-height:1.35}
+.media-err-card .me-t2{font-size:15px;font-weight:600;color:#8fe3c8;margin-top:5px}
+.media-err-card .me-why{font-size:13.5px;color:#b9cdc8;line-height:1.7;text-align:left;margin:16px 0 0}
+.me-steps{margin-top:16px;display:flex;flex-direction:column;gap:10px;text-align:left}
+.me-step{
+background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+border-radius:14px;padding:13px 14px;font-size:14.5px;font-weight:600;line-height:1.6;
+}
+.me-step b{color:#fff;font-weight:800}
+.me-step .me-sub{display:block;font-size:12.5px;font-weight:600;color:#b9cdc8;margin-top:2px}
+#mediaRetryBtn{
+appearance:none;border:none;cursor:pointer;font-family:inherit;width:100%;margin-top:20px;
+background:#0b6e63;color:#fff;border-radius:16px;padding:18px 14px;
+font-size:19px;font-weight:800;box-shadow:0 10px 26px rgba(0,0,0,.4);
+transition:background .15s, transform .08s;
+}
+#mediaRetryBtn:hover{background:#0a5f55}
+#mediaRetryBtn:active{transform:scale(.98)}
+#mediaRetryBtn .cb2{display:block;font-size:13px;font-weight:600;opacity:.85;margin-top:2px}
+.friend-time{font-size:11px;font-weight:600;color:rgba(185,205,200,.85);flex:none;align-self:flex-start;margin-top:2px}
+.friend-unread{
+min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#e23a2e;color:#fff;
+font-size:11px;font-weight:800;line-height:19px;text-align:center;flex:none;
+}
+.voice-stage{
+position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;
+align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px;
+}
+.voice-stage.hidden{display:none}
+.voice-avatar{
+width:118px;height:118px;border-radius:50%;background:#0b6e63;color:#fff;
+display:flex;align-items:center;justify-content:center;
+font-size:50px;font-weight:800;box-shadow:0 14px 36px rgba(0,0,0,.5);
+border:3px solid rgba(143,227,200,.55);
+}
+.voice-name{font-size:23px;font-weight:900;margin-top:8px;max-width:82vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.voice-state{font-size:14.5px;font-weight:700;color:#8fe3c8}
+.voice-timer{font-size:15px;font-weight:600;color:#b9cdc8;font-variant-numeric:tabular-nums;letter-spacing:1px}
+.chat-screen{
+position:absolute;inset:0;z-index:40;display:flex;flex-direction:column;
+background:
+radial-gradient(120% 60% at 50% 0%, #243832 0%, rgba(36,56,50,0) 55%),
+#0d1513;
+}
+.chat-screen.hidden{display:none}
+.chat-head{
+flex:none;display:flex;align-items:center;gap:10px;
+padding:calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px;
+background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+border-bottom:1px solid rgba(255,255,255,.12);
+}
+.chat-back{
+appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
+width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
+font-size:19px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0;
+}
+.chat-title{flex:1;min-width:0;text-align:left}
+.chat-name{font-size:17px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-state{font-size:11.5px;font-weight:600;color:#b9cdc8;margin-top:1px}
+.chat-state .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#9aa7a3;margin-right:5px;vertical-align:1px}
+.chat-state .dot.on{background:var(--green)}
+.chat-state .dot.wait{background:var(--amber)}
+.chat-messages{
+flex:1;overflow-y:auto;overscroll-behavior:contain;
+display:flex;flex-direction:column;gap:10px;padding:16px 14px 10px;
+}
+.chat-msg{max-width:84%;padding:10px 14px 11px;border-radius:16px;background:var(--bubble-bg);color:var(--bubble-ink);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.chat-msg.me{align-self:flex-end;border-bottom-right-radius:6px;background:#cdeee0}
+.chat-msg.peer{align-self:flex-start;border-bottom-left-radius:6px}
+.chat-msg .orig{font-size:16px;font-weight:700;line-height:1.45;word-break:break-word}
+.chat-msg .trans{font-size:15px;line-height:1.5;word-break:break-word;color:var(--bubble-sub);margin-top:5px;padding-top:5px;border-top:1px solid rgba(23,32,29,.12)}
+.chat-msg .trans.pending-txt{border-top:none;margin-top:2px;padding-top:0;font-size:13px}
+.chat-msg .meta{font-size:11px;font-weight:600;color:var(--bubble-sub);margin-top:6px;opacity:.85}
+.chat-msg .meta.fail{color:#b3261c;font-weight:800}
+.chat-empty{margin:auto;text-align:center;font-size:13.5px;color:#b9cdc8;line-height:1.7;max-width:280px;padding:20px}
+.chat-composer{
+flex:none;display:flex;gap:9px;align-items:flex-end;
+padding:10px 12px calc(env(safe-area-inset-bottom, 0px) + 14px);
+background:rgba(20,26,24,.72);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+border-top:1px solid rgba(255,255,255,.12);
+}
+#chatInput{
+flex:1;min-width:0;padding:13px 14px;font-family:inherit;font-size:16px;font-weight:600;color:#fff;
+background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.35);border-radius:16px;outline:none;resize:none;
+max-height:110px;line-height:1.45;
+}
+#chatInput:focus{border-color:#8fe3c8}
+#chatInput::placeholder{color:rgba(255,255,255,.4)}
+#chatSendBtn{
+appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
+background:#0b6e63;color:#fff;border-radius:16px;padding:14px 20px;font-size:16.5px;font-weight:800;
+}
+#chatSendBtn:active{transform:scale(.97)}
+#chatSendBtn:disabled{opacity:.55}
+#chatPlusBtn{
+appearance:none;border:none;cursor:pointer;font-family:inherit;flex:none;
+width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;
+font-size:24px;font-weight:600;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;
+transition:transform .15s, background .15s;
+}
+#chatPlusBtn:active{transform:scale(.94)}
+#chatPlusBtn.open{transform:rotate(45deg);background:rgba(11,110,99,.85)}
+.chat-plus-menu{
+flex:none;display:flex;gap:12px;padding:14px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+background:rgba(16,22,20,.92);border-top:1px solid rgba(255,255,255,.12);
+}
+.chat-plus-menu.hidden{display:none}
+.plus-item{
+appearance:none;cursor:pointer;font-family:inherit;flex:1;
+background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.22);color:#fff;
+border-radius:16px;padding:16px 10px 13px;text-align:center;
+}
+.plus-item:active{background:rgba(255,255,255,.16)}
+.plus-item .pi-ic{font-size:27px;display:block;line-height:1.2}
+.plus-item .pi-tx{display:block;font-size:14.5px;font-weight:800;margin-top:5px}
+.plus-item .pi-sub{display:block;font-size:11.5px;font-weight:600;color:#b9cdc8;margin-top:1px}
+.my-user-bar{
+appearance:none;cursor:pointer;font-family:inherit;margin-top:18px;
+background:rgba(11,110,99,.35);border:1.5px solid rgba(143,227,200,.5);color:#fff;
+border-radius:999px;padding:9px 18px;font-size:14.5px;font-weight:800;
+}
+.my-user-bar .mu-name{color:#8fe3c8}
+.my-user-bar .mu-edit{font-size:11.5px;font-weight:600;color:#b9cdc8;margin-left:6px}
+.reg-overlay{
+position:absolute;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+padding:28px 22px;background:rgba(6,10,9,.96);overflow-y:auto;
+}
+.reg-overlay.hidden{display:none}
+.reg-card{width:100%;max-width:360px;text-align:center}
+.reg-card .rg-t1{font-size:24px;font-weight:900;line-height:1.35}
+.reg-card .rg-t2{font-size:14.5px;font-weight:600;color:#8fe3c8;margin-top:5px}
+.reg-card .rg-why{font-size:13.5px;color:#b9cdc8;line-height:1.7;text-align:left;margin:16px 0 0}
+#regInput{
+width:100%;margin-top:18px;padding:15px 14px;font-family:inherit;text-align:center;
+font-size:19px;font-weight:800;color:#fff;
+background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.4);border-radius:14px;outline:none;
+}
+#regInput:focus{border-color:#8fe3c8;background:rgba(255,255,255,.14)}
+#regInput::placeholder{color:rgba(255,255,255,.35);font-size:16px}
+#regBtn{
+appearance:none;border:none;cursor:pointer;font-family:inherit;width:100%;margin-top:14px;
+background:#0b6e63;color:#fff;border-radius:16px;padding:17px 14px;
+font-size:18.5px;font-weight:800;box-shadow:0 10px 26px rgba(0,0,0,.4);
+}
+#regBtn:active{transform:scale(.98)}
+#regBtn .cb2{display:block;font-size:12.5px;font-weight:600;opacity:.85;margin-top:2px}
+.reg-err{min-height:22px;margin-top:10px;font-size:13.5px;font-weight:700;color:#ff9a8f;line-height:1.5}
+.incoming-overlay{
+position:absolute;inset:0;z-index:55;display:flex;align-items:center;justify-content:center;
+padding:28px 22px;background:rgba(6,10,9,.93);
+}
+.incoming-overlay.hidden{display:none}
+.incoming-card{width:100%;max-width:340px;text-align:center}
+.incoming-avatar{
+width:96px;height:96px;margin:0 auto;border-radius:50%;background:#0b6e63;color:#fff;
+display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:800;
+border:3px solid rgba(143,227,200,.55);box-shadow:0 12px 30px rgba(0,0,0,.5);
+}
+.incoming-card .ic-t1{font-size:21px;font-weight:900;line-height:1.45;margin-top:16px}
+.incoming-card .ic-t2{font-size:14px;font-weight:600;color:#8fe3c8;margin-top:4px}
+.incoming-btns{display:flex;gap:14px;margin-top:26px}
+.incoming-btns button{
+appearance:none;border:none;cursor:pointer;font-family:inherit;flex:1;
+border-radius:16px;padding:17px 10px;font-size:17.5px;font-weight:800;color:#fff;
+}
+.incoming-btns button:active{transform:scale(.97)}
+#incomingAcceptBtn{background:#0b6e63}
+#incomingDeclineBtn{background:var(--red)}
+</style>
+</head>
+<body>
+<div class="call">
+<div class="stage-bg"></div>
+<video id="remoteVideo" autoplay playsinline></video>
+<div class="stage-note" id="stageNote">
+<div class="t1" id="stageT1">正在开启摄像头…</div>
+<div class="t2" id="stageT2">Đang mở camera… Cho phép quyền camera và mic khi được hỏi.</div>
+</div>
+<div class="voice-stage hidden" id="voiceStage">
+<div class="voice-avatar" id="voiceAvatar">?</div>
+<div class="voice-name" id="voiceName">对方</div>
+<div class="voice-state">语音通话中 · Đang gọi thoại</div>
+<div class="voice-timer" id="voiceTimer">00:00</div>
+</div>
+<video id="localVideo" autoplay playsinline muted></video>
+<div class="topbar">
+<button class="room-pill" id="roomPill" type="button" title="房间号 · Mã phòng">
+<span class="dot" id="connDot"></span><span id="roomPillTxt">······</span>
+</button>
+<button class="lang-pill" id="langPill" type="button" title="切换我说的语言 · Đổi ngôn ngữ tôi nói">
+<span id="langLeft">Tiếng Việt</span>
+<span class="swap">⇄</span>
+<span id="langRight" class="cur">Tiếng Trung</span>
+</button>
+</div>
+<div class="subtitles" id="feed"></div>
+<div class="status-line" id="statusLine"></div>
+<div class="controls">
+<button class="ctrl" id="micBtn" type="button" aria-label="麦克风 · Mic">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>
+</button>
+<button class="ctrl" id="hangupBtn" type="button" aria-label="挂断 · Cúp máy">
+<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>
+</button>
+<button class="ctrl" id="speakerBtn" type="button" aria-label="扬声器播报 · Loa đọc bản dịch">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+</button>
+</div>
+<div class="invite-bar hidden" id="inviteBar">
+<div class="room-big" id="inviteRoomCode">······</div>
+<div class="room-cap">房间号 · Mã phòng — 把链接发给对方，对方点开直接进来</div>
+<div class="invite-qr" id="inviteQr" aria-label="邀请二维码 · Mã QR mời"></div>
+<div class="invite-qr-cap" id="inviteQrCap">对方用手机相机扫一扫，直接进房间 · Dùng camera quét mã QR để vào phòng ngay</div>
+<button id="copyLinkBtn" type="button">🔗 复制邀请链接<span class="cb2">Sao chép liên kết mời</span></button>
+</div>
+<div class="lobby" id="lobby">
+<div class="lt1">中越视频通话 · 实时翻译</div>
+<div class="lt2">Gọi video Trung–Việt · Dịch trực tiếp</div>
+<div class="lt3">创建房间后把邀请链接发给对方；或者输入对方的 6 位房间号加入。<br/>Tạo phòng rồi gửi liên kết mời, hoặc nhập mã phòng 6 ký tự của đối phương để tham gia.</div>
+<button class="my-user-bar hidden" id="myUserBar" type="button">我的用户名：<span class="mu-name" id="myUserName"></span><span class="mu-edit">点这里改名 · Đổi tên</span></button>
+<div class="lang-choice" id="langChoice">
+<div class="lc-label">我说的语言 · Ngôn ngữ tôi nói</div>
+<div class="lc-row">
+<button class="lc-btn" id="lobbyLangZh" type="button">中文<span class="lc-sub">我讲中文</span></button>
+<button class="lc-btn" id="lobbyLangVi" type="button">Tiếng Việt<span class="lc-sub">Tôi nói tiếng Việt</span></button>
+</div>
+</div>
+<div class="friends" id="friendsBox">
+<div class="friends-head">
+<div class="fh-label">好友 · Bạn bè</div>
+<button class="add-friend-btn" id="addFriendBtn" type="button">＋ 添加好友</button>
+</div>
+<div class="friend-empty" id="friendEmpty">还没有好友。点「＋ 添加好友」，填对方的用户名就行；以后点开好友直接聊天，聊天里点 ➕ 就能打视频/语音电话。<br/>Chưa có bạn bè. Bấm «+ Thêm bạn bè», nhập tên người dùng của đối phương là xong; sau này bấm vào bạn bè là nhắn tin ngay, trong khung chat bấm ➕ để gọi video/thoại.</div>
+<div class="friend-list" id="friendList"></div>
+</div>
+<div class="lobby-actions" id="lobbyActions">
+<button class="big-btn create" id="createBtn" type="button">
+<span class="b1">创建房间</span>
+<span class="b2">Tạo phòng mới</span>
+</button>
+<button class="big-btn join" id="joinBtn" type="button">
+<span class="b1">加入房间</span>
+<span class="b2">Vào phòng bằng mã</span>
+</button>
+</div>
+<div class="join-panel hidden" id="joinPanel">
+<div class="jp-label">输入对方的 6 位房间号 · Nhập mã phòng 6 ký tự</div>
+<input id="roomInput" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="6" placeholder="ABC123" aria-label="房间号 · Mã phòng" />
+<button class="big-btn" id="joinGoBtn" type="button">
+<span class="b1">加入 · Vào phòng</span>
+</button>
+<div class="join-err" id="joinErr"></div>
+<button class="back-link" id="joinBackBtn" type="button">← 返回 · Quay lại</button>
+</div>
+<div class="friend-panel hidden" id="friendPanel">
+<div class="fp-label">对方的用户名 · Tên người dùng của đối phương</div>
+<input class="fp-input" id="friendUserInput" type="text" maxlength="24" autocomplete="off" placeholder="比如：小明 · Ví dụ: Minh" aria-label="对方的用户名 · Tên người dùng của đối phương" />
+<div class="fp-note">填对方在 App 里注册的用户名，要一模一样（中文也可以）。加上后点开好友就能聊天、打视频/语音，不用房间号、不用链接。对方也要加你的用户名，你们才能互相发消息、打电话。<br/>Nhập đúng tên người dùng đối phương đã đăng ký trong App (tiếng Trung cũng được). Thêm xong bấm vào là nhắn tin, gọi video/thoại được ngay, không cần mã phòng hay liên kết. Đối phương cũng cần thêm tên người dùng của bạn.</div>
+<button class="big-btn" id="friendSaveBtn" type="button">
+<span class="b1">保存 · Lưu</span>
+</button>
+<div class="join-err" id="friendErr"></div>
+<button class="back-link" id="friendBackBtn" type="button">← 返回 · Quay lại</button>
+</div>
+<div class="ver-tag">版本号 v13 · Phiên bản v13<br/>双方版本号要一致 · Cả hai máy phải cùng phiên bản</div>
+</div>
+<div class="ended hidden" id="endedOverlay">
+<div class="t1">通话已结束</div>
+<div class="t2">Cuộc gọi đã kết thúc</div>
+<button id="restartBtn" type="button">重新开始 · Bắt đầu lại</button>
+</div>
+<div class="media-err hidden" id="mediaErr">
+<div class="media-err-card">
+<div class="me-t1">摄像头 / 麦克风被阻止了</div>
+<div class="me-t2">Camera / mic đã bị chặn</div>
+<p class="me-why">浏览器不让这个页面使用摄像头和麦克风，所以没法视频通话——多半是之前点过「不允许」。按你打开页面的方式，照下面重新打开，再点下面的「重新授权」。<br/>Trình duyệt không cho trang này dùng camera và mic nên không gọi video được — thường là do trước đó đã bấm «Không cho phép». Hãy mở lại theo cách bạn đã mở trang, rồi bấm «Cấp quyền lại» bên dưới.</p>
+<div class="me-steps">
+<div class="me-step"><b>在 Safari 里：</b>点地址栏左边的「大小」按钮 → 点「网站设置」 → 把「摄像头」和「麦克风」都改成「允许」。<span class="me-sub">Trong Safari: nhấn nút «A A» bên trái thanh địa chỉ → «Cài đặt trang web» → đổi «Camera» và «Micrô» thành «Cho phép».</span></div>
+<div class="me-step"><b>在微信里：</b>关掉这个页面，重新扫码（或重新点开链接）进来，弹出询问时点「允许」。<span class="me-sub">Trong WeChat: đóng trang này, quét lại mã QR (hoặc bấm lại liên kết) để vào, khi được hỏi thì bấm «Cho phép».</span></div>
+</div>
+<button id="mediaRetryBtn" type="button">重新授权<span class="cb2">Cấp quyền lại</span></button>
+</div>
+</div>
+</div>
+<div class="chat-screen hidden" id="chatScreen">
+<div class="chat-head">
+<button class="chat-back" id="chatBackBtn" type="button" aria-label="返回 · Quay lại">←</button>
+<div class="friend-avatar" id="chatAvatar">?</div>
+<div class="chat-title">
+<div class="chat-name" id="chatFriendName">好友</div>
+<div class="chat-state" id="chatState"><span class="dot wait"></span>正在连接… · Đang kết nối…</div>
+</div>
+</div>
+<div class="chat-messages" id="chatMessages"></div>
+<div class="chat-plus-menu hidden" id="chatPlusMenu">
+<button class="plus-item" id="plusVideoBtn" type="button">
+<span class="pi-ic">📹</span>
+<span class="pi-tx">视频通话</span>
+<span class="pi-sub">Gọi video</span>
+</button>
+<button class="plus-item" id="plusVoiceBtn" type="button">
+<span class="pi-ic">📞</span>
+<span class="pi-tx">语音通话</span>
+<span class="pi-sub">Gọi thoại</span>
+</button>
+</div>
+<div class="chat-composer">
+<button id="chatPlusBtn" type="button" aria-label="更多 · Thêm">＋</button>
+<textarea id="chatInput" rows="1" maxlength="500" placeholder="打字发消息，自动翻译 · Nhập tin nhắn, dịch tự động" aria-label="消息输入 · Nhập tin nhắn"></textarea>
+<button id="chatSendBtn" type="button">发送<br/><span style="font-size:11.5px;font-weight:600;opacity:.85">Gửi</span></button>
+</div>
+</div>
+<div class="reg-overlay hidden" id="regOverlay">
+<div class="reg-card">
+<div class="rg-t1" id="regTitle">取个用户名就能用</div>
+<div class="rg-t2">Chỉ cần đặt một tên người dùng</div>
+<p class="rg-why">随便取一个用户名，不用密码、不用验证。别人用这个用户名加你好友，就能给你发消息、打视频/语音电话。用户名可以中文，先到先得：被别人占了就换一个。<br/>Đặt một tên người dùng bất kỳ, không cần mật khẩu hay xác minh. Người khác dùng tên này để kết bạn, nhắn tin và gọi cho bạn. Tên có thể là tiếng Trung, ai đăng ký trước được trước.</p>
+<input id="regInput" type="text" maxlength="24" autocomplete="off" placeholder="比如：小明 · Ví dụ: Minh" aria-label="用户名 · Tên người dùng" />
+<button id="regBtn" type="button">开始使用<span class="cb2">Bắt đầu dùng</span></button>
+<div class="reg-err" id="regErr"></div>
+</div>
+</div>
+<div class="incoming-overlay hidden" id="incomingOverlay">
+<div class="incoming-card">
+<div class="incoming-avatar" id="incomingAvatar">?</div>
+<div class="ic-t1" id="incomingText">有人邀请你通话</div>
+<div class="ic-t2" id="incomingSub">Cuộc gọi đến</div>
+<div class="incoming-btns">
+<button id="incomingDeclineBtn" type="button">拒绝 · Từ chối</button>
+<button id="incomingAcceptBtn" type="button">接听 · Nghe</button>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+(function(){
+"use strict";
+var PREFIX = "zhyuetong-v1-";
+var $ = function(id){ return document.getElementById(id); };
+var myLang = "zh"; 
+var roomCode = null, isHost = false;
+var peer = null, conn = null, mediaCall = null;
+var connAttempt = null, connAttemptAt = 0, connAttemptDead = true;
+var mySess = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+var localStream = null, mediaStarted = false;
+var autoSpeak = true;
+var msgSeq = 0;
+var callMode = "video";
+var sessionKind = null;
+var returnFriend = null;   
+var callPeerName = "";     
+var userCallTarget = "";   
+var pendingBootMode = "video"; 
+var voiceStartAt = 0, voiceTimerInt = null;
+var mediaResume = null;    
+var userCallConn = null, userCallTimer = null;
+var pendingAnswerCall = null;
+var silentCycles = 0, probeCycles = 0;
+var listenOn = false;      
+var recognition = null;    
+var recLang = "zh";        
+var restartTimer = null;
+var cycleGotFinal = false; 
+var cycleError = "";
+var recStarting = false;
+var intentionalRestart = false; 
+var remoteVideo = $("remoteVideo"), localVideo = $("localVideo");
+var feed = $("feed");
+var toastTimer = null;
+function toast(msg){
+var t = $("toast"); t.textContent = msg; t.classList.add("show");
+clearTimeout(toastTimer);
+toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2400);
+}
+function setStatus(msg, isErr){
+var el = $("statusLine");
+el.textContent = msg || "";
+el.classList.toggle("err", !!isErr);
+}
+function setConn(state){
+$("connDot").className = "dot" + (state === "on" ? " on" : state === "wait" ? " wait" : "");
+}
+function fmtCallTime(sec){
+var m = Math.floor(sec / 60), s = sec % 60;
+return (m < 10 ? "0" : "") + m + ":" + (s < 10 ? "0" : "") + s;
+}
+function startVoiceTimer(){
+if (voiceTimerInt) return;
+voiceStartAt = Date.now();
+$("voiceTimer").textContent = "00:00";
+voiceTimerInt = setInterval(function(){
+$("voiceTimer").textContent = fmtCallTime(Math.floor((Date.now() - voiceStartAt) / 1000));
+}, 1000);
+}
+function stopVoiceTimer(){
+if (voiceTimerInt){ clearInterval(voiceTimerInt); voiceTimerInt = null; }
+}
+function applyCallModeUI(){
+var voice = callMode === "voice";
+$("voiceStage").classList.toggle("hidden", !voice);
+remoteVideo.style.display = voice ? "none" : "";
+localVideo.style.display = voice ? "none" : "";
+if (voice){
+$("stageNote").classList.add("hidden");
+$("voiceAvatar").textContent = (callPeerName || "对").slice(0, 1);
+$("voiceName").textContent = callPeerName || "对方 · Đối phương";
+startVoiceTimer();
+} else {
+stopVoiceTimer();
+}
+}
+function renderLangPill(){
+$("langLeft").textContent = "Tiếng Việt";
+$("langRight").textContent = "Tiếng Trung";
+$("langLeft").classList.toggle("cur", myLang === "vi");
+$("langRight").classList.toggle("cur", myLang === "zh");
+}
+function renderLobbyLang(){
+var zh = $("lobbyLangZh"), vi = $("lobbyLangVi");
+if (zh) zh.classList.toggle("sel", myLang === "zh");
+if (vi) vi.classList.toggle("sel", myLang === "vi");
+}
+function setMyLang(lang, silent){
+myLang = lang === "vi" ? "vi" : "zh";
+recLang = myLang;
+silentCycles = 0; probeCycles = 0;
+renderLangPill();
+renderLobbyLang();
+if (!silent) toast(myLang === "zh" ? "我说中文 · 对方说越南语" : "Tôi nói tiếng Việt · Đối phương nói tiếng Trung");
+if (conn && conn.open){ try { conn.send({ type: "hello", lang: myLang }); } catch(e){} }
+if (listenOn) restartRecognitionSoon(60);
+if (isHost && roomCode) renderInviteQr();
+}
+$("langPill").addEventListener("click", function(){
+setMyLang(myLang === "zh" ? "vi" : "zh", false);
+});
+if ($("lobbyLangZh")) $("lobbyLangZh").addEventListener("click", function(){ setMyLang("zh", false); });
+if ($("lobbyLangVi")) $("lobbyLangVi").addEventListener("click", function(){ setMyLang("vi", false); });
+renderLangPill();
+renderLobbyLang();
+function pickVoice(langPrefix){
+try {
+var voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+for (var i = 0; i < voices.length; i++){
+if (voices[i].lang && voices[i].lang.toLowerCase().indexOf(langPrefix) === 0) return voices[i];
+}
+} catch(e){}
+return null;
+}
+if (window.speechSynthesis && window.speechSynthesis.onvoiceschanged !== undefined){
+window.speechSynthesis.onvoiceschanged = function(){};
+}
+function speak(text, lang){
+if (!text || !autoSpeak || !("speechSynthesis" in window)) return;
+try {
+window.speechSynthesis.cancel();
+var u = new SpeechSynthesisUtterance(text);
+u.lang = lang === "zh" ? "zh-CN" : "vi-VN";
+var v = pickVoice(lang === "zh" ? "zh" : "vi");
+if (v) u.voice = v;
+u.rate = 1;
+window.speechSynthesis.speak(u);
+} catch(e){}
+}
+function badTranslation(out, src){
+if (!out) return true;
+var s = String(out).trim();
+if (!s) return true;
+if (/MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID (EMAIL|TARGET|SOURCE)|NO QUERY SPECIFIED|^[A-Z ]*ERROR/i.test(s)) return true;
+if (s.toLowerCase() === String(src || "").trim().toLowerCase() && s.length > 3) return true;
+return false;
+}
+function fetchJson(url, ms){
+return new Promise(function(resolve, reject){
+var done = false;
+var ctl = ("AbortController" in window) ? new AbortController() : null;
+var timer = setTimeout(function(){
+if (done) return; done = true;
+if (ctl){ try { ctl.abort(); } catch(e){} }
+reject(new Error("translate timeout"));
+}, ms || 6000);
+fetch(url, ctl ? { signal: ctl.signal } : undefined)
+.then(function(r){ return r.json(); })
+.then(function(j){
+if (done) return; done = true; clearTimeout(timer); resolve(j);
+})
+.catch(function(err){
+if (done) return; done = true; clearTimeout(timer); reject(err);
+});
+});
+}
+function fetchJsonPost(url, body, ms){
+return new Promise(function(resolve, reject){
+var done = false;
+var ctl = ("AbortController" in window) ? new AbortController() : null;
+var timer = setTimeout(function(){
+if (done) return; done = true;
+if (ctl){ try { ctl.abort(); } catch(e){} }
+reject(new Error("translate timeout"));
+}, ms || 8000);
+fetch(url, {
+method: "POST",
+headers: { "Content-Type": "application/json" },
+body: JSON.stringify(body),
+signal: ctl ? ctl.signal : undefined
+})
+.then(function(r){ return r.json(); })
+.then(function(j){
+if (done) return; done = true; clearTimeout(timer); resolve(j);
+})
+.catch(function(err){
+if (done) return; done = true; clearTimeout(timer); reject(err);
+});
+});
+}
+var TRANSLATE_API = "https://zhong-yue-fanyi-api.vercel.app/api/translate";
+function translateViaServer(text, from, to){
+var fromCode = from === "zh" ? "zh-CN" : "vi";
+var toCode = to === "zh" ? "zh-CN" : "vi";
+return fetchJsonPost(TRANSLATE_API, { text: text, from: fromCode, to: toCode }, 8000)
+.then(function(j){
+var out = j && j.translation ? String(j.translation).trim() : "";
+if (badTranslation(out, text)) throw new Error("bad server translation");
+return out;
+});
+}
+function translateViaMyMemory(text, from, to){
+var pair = (from === "zh" ? "zh-CN" : "vi") + "|" + (to === "zh" ? "zh-CN" : "vi");
+var url = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + encodeURIComponent(pair);
+return fetchJson(url)
+.then(function(j){
+var out = j && j.responseData && j.responseData.translatedText ? String(j.responseData.translatedText).trim() : "";
+if (badTranslation(out, text)) throw new Error("bad mymemory translation");
+return out;
+});
+}
+function translateViaGoogle(text, from, to){
+var sl = from === "zh" ? "zh-CN" : "vi";
+var tl = to === "zh" ? "zh-CN" : "vi";
+var url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=" + encodeURIComponent(sl) + "&tl=" + encodeURIComponent(tl) + "&dt=t&q=" + encodeURIComponent(text);
+return fetchJson(url)
+.then(function(j){
+var out = "";
+if (j && j[0]){ for (var i = 0; i < j[0].length; i++){ if (j[0][i] && j[0][i][0]) out += j[0][i][0]; } }
+out = String(out || "").trim();
+if (badTranslation(out, text)) throw new Error("bad google translation");
+return out;
+});
+}
+function translateText(text, from, to){
+return translateViaServer(text, from, to).catch(function(){
+return translateViaGoogle(text, from, to);
+}).catch(function(){
+return translateViaMyMemory(text, from, to);
+});
+}
+function scrollFeed(){
+feed.scrollTop = feed.scrollHeight;
+}
+function addBubble(orig, trans, fromLang, pending){
+var toLang = fromLang === "zh" ? "vi" : "zh";
+var div = document.createElement("div");
+div.className = "bubble from-" + fromLang + (pending ? " pending" : "");
+var o = document.createElement("div");
+o.className = "orig"; o.textContent = orig;
+var t = document.createElement("div");
+t.className = "trans" + (pending ? " pending-txt" : "");
+t.textContent = pending ? "Đang dịch… / 正在翻译…" : trans;
+div.appendChild(o); div.appendChild(t);
+feed.appendChild(div);
+while (feed.children.length > 30) feed.removeChild(feed.firstChild);
+scrollFeed();
+return { root: div, transEl: t, toLang: toLang };
+}
+function fillBubble(handle, trans){
+handle.root.classList.remove("pending");
+handle.transEl.classList.remove("pending-txt");
+handle.transEl.textContent = trans;
+}
+var liveBubble = null, liveOrigEl = null;
+function showLive(text, fromLang){
+if (!text){ hideLive(); return; }
+if (!liveBubble){
+liveBubble = document.createElement("div");
+liveBubble.className = "bubble live from-" + fromLang;
+liveOrigEl = document.createElement("div");
+liveOrigEl.className = "orig";
+liveBubble.appendChild(liveOrigEl);
+feed.appendChild(liveBubble);
+}
+liveBubble.className = "bubble live from-" + fromLang;
+liveOrigEl.textContent = text;
+scrollFeed();
+}
+function hideLive(){
+if (liveBubble && liveBubble.parentNode) liveBubble.parentNode.removeChild(liveBubble);
+liveBubble = null; liveOrigEl = null;
+}
+var demoDone = false;
+function showDemo(){
+addBubble("两千平方。", "Hai nghìn mét vuông.", "zh", false);
+addBubble("Sản xuất tồn kho nhiều như vậy à?", "这就是目前的库存产量吗？", "vi", false);
+}
+function clearDemo(){
+if (demoDone) return;
+demoDone = true;
+feed.innerHTML = "";
+liveBubble = null; liveOrigEl = null;
+}
+showDemo();
+var VI_MARKS = /[ăâđêôơưàáảãạằắẳẵặầấẩẫậèéẻẽẹềếểễệìíỉĩịòóỏõọồốổỗộờớởỡợùúủũụừứửữựỳýỷỹỵ]/i;
+function guessLang(text, fallback){
+if (/[\u4e00-\u9fff]/.test(text)) return "zh";
+if (VI_MARKS.test(text)) return "vi";
+return fallback;
+}
+var lastSentText = "", lastSentAt = 0;
+var pendingOut = [];
+function sendData(obj){
+if (conn && conn.open){ try { conn.send(obj); return true; } catch(e){} }
+return false;
+}
+function flushPending(){
+if (!conn || !conn.open || !pendingOut.length) return;
+var queued = pendingOut; pendingOut = [];
+for (var i = 0; i < queued.length; i++){
+try { conn.send(queued[i]); }
+catch(e){ pendingOut.push(queued[i]); }
+}
+}
+function sendOrQueue(obj){
+flushPending();
+if (!sendData(obj)) pendingOut.push(obj);
+}
+function processMessage(text, fromLang){
+text = (text || "").trim();
+if (!text) return;
+var now = Date.now();
+if (text === lastSentText && now - lastSentAt < 2500) return; 
+lastSentText = text; lastSentAt = now;
+fromLang = fromLang === "vi" ? "vi" : "zh";
+var to = fromLang === "zh" ? "vi" : "zh";
+clearDemo();
+hideLive();
+var handle = addBubble(text, "", fromLang, true);
+var id = ++msgSeq;
+var hasPeer = !!(conn || connAttempt);
+if (hasPeer){
+sendOrQueue({ type: "msg", sess: mySess, id: id, from: fromLang, orig: text, trans: "" });
+}
+translateText(text, fromLang, to)
+.then(function(trans){
+fillBubble(handle, trans);
+if (hasPeer){
+sendOrQueue({ type: "trans", sess: mySess, id: id, trans: trans });
+} else {
+speak(trans, to);
+}
+})
+.catch(function(){
+handle.root.classList.remove("pending");
+handle.transEl.textContent = "Dịch thất bại · 翻译失败，检查网络";
+});
+}
+var remoteMsgs = {}; 
+function remoteKey(data){
+if (data.id === undefined || data.id === null) return null;
+return (data.sess || "") + ":" + data.id;
+}
+function receiveRemoteMsg(data){
+clearDemo();
+var from = data.from === "vi" ? "vi" : "zh";
+var key = remoteKey(data);
+if (key !== null && remoteMsgs[key]) return; 
+var handle = addBubble(data.orig || "", data.trans || "", from, !data.trans);
+var rec = { handle: handle, done: !!data.trans };
+if (key !== null) remoteMsgs[key] = rec;
+if (data.trans){
+speak(data.trans, handle.toLang);
+return;
+}
+translateText(data.orig || "", from, handle.toLang)
+.then(function(trans){
+if (rec.done) return;
+rec.done = true;
+fillBubble(handle, trans);
+speak(trans, handle.toLang);
+})
+.catch(function(){
+if (rec.done) return;
+rec.done = true;
+handle.root.classList.remove("pending");
+handle.transEl.classList.remove("pending-txt");
+handle.transEl.textContent = "Dịch thất bại · 翻译失败（上面是对方原话）";
+});
+}
+function receiveRemoteTrans(data){
+var key = remoteKey(data);
+if (key === null || !data.trans) return;
+var rec = remoteMsgs[key];
+if (!rec || rec.done) return;
+rec.done = true;
+fillBubble(rec.handle, data.trans);
+speak(data.trans, rec.handle.toLang);
+}
+var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+var IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || "") ||
+(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function setMicUI(){
+$("micBtn").classList.toggle("listening", listenOn);
+$("micBtn").classList.toggle("off", !listenOn);
+}
+function startRecCycle(){
+if (!listenOn) return;
+if (!SR){
+setStatus("Trình duyệt này không hỗ trợ nhận dạng giọng nói · 本机浏览器不支持语音识别", true);
+listenOn = false; setMicUI();
+return;
+}
+if (recognition || recStarting) return;
+recStarting = true;
+cycleGotFinal = false; cycleError = "";
+var rec;
+try { rec = new SR(); } catch(e){ recStarting = false; scheduleRestart(800); return; }
+recognition = rec;
+rec.lang = recLang === "zh" ? "zh-CN" : "vi-VN";
+rec.interimResults = true;
+try { rec.continuous = !IS_IOS; } catch(e){}
+var finalBuf = "";
+var handledUpTo = 0;
+var interimText = "";   
+var lastFinalText = ""; 
+var promotedText = "";  
+var promoteTimer = null;
+function clearPromoteTimer(){
+if (promoteTimer){ clearTimeout(promoteTimer); promoteTimer = null; }
+}
+function promoteInterim(){
+promoteTimer = null;
+if (recognition !== rec || !listenOn) return;
+var text = interimText.trim();
+if (!text || text === promotedText || text === lastFinalText) return;
+promotedText = text;
+cycleGotFinal = true;
+processMessage(text, guessLang(text, recLang));
+try { rec.abort(); } catch(e){}
+}
+function armPromoteTimer(){
+clearPromoteTimer();
+if (!IS_IOS) return;
+if (interimText.trim()) promoteTimer = setTimeout(promoteInterim, 1200);
+}
+rec.onresult = function(ev){
+var interim = "";
+for (var i = 0; i < ev.results.length; i++){
+var res = ev.results[i];
+if (res.isFinal){
+if (i >= handledUpTo){
+var sentence = (res[0].transcript || "").trim();
+handledUpTo = i + 1;
+if (sentence){
+cycleGotFinal = true;
+lastFinalText = sentence;
+var from = guessLang(sentence, recLang);
+finalBuf = "";
+if (!(promotedText && (sentence === promotedText || sentence.indexOf(promotedText) === 0))){
+processMessage(sentence, from);
+}
+}
+}
+} else {
+interim += res[0].transcript;
+}
+}
+interimText = interim;
+if (interim){ showLive(interim, guessLang(interim, recLang)); armPromoteTimer(); }
+else if (!finalBuf){ hideLive(); clearPromoteTimer(); }
+};
+rec.onerror = function(ev){
+cycleError = ev && ev.error ? ev.error : "";
+if (cycleError === "not-allowed" || cycleError === "service-not-allowed"){
+listenOn = false; setMicUI();
+setStatus("Chưa cấp quyền mic · 麦克风未授权，请在浏览器设置里允许麦克风", true);
+} else if (cycleError === "audio-capture"){
+listenOn = false; setMicUI();
+setStatus("Không tìm thấy mic · 找不到麦克风", true);
+}
+};
+rec.onend = function(){
+recognition = null; recStarting = false;
+clearPromoteTimer();
+var stuck = interimText.trim();
+if (listenOn && stuck && stuck !== promotedText && stuck !== lastFinalText){
+cycleGotFinal = true;
+processMessage(stuck, guessLang(stuck, recLang));
+}
+hideLive();
+if (!listenOn){ intentionalRestart = false; return; }
+if (intentionalRestart){
+intentionalRestart = false;
+recLang = myLang;
+} else if (conn && conn.open){
+if (cycleGotFinal){
+silentCycles = 0; probeCycles = 0;
+if (recLang !== myLang) setMyLang(recLang, false);
+recLang = myLang;
+} else if (recLang !== myLang){
+probeCycles++;
+if (probeCycles >= 3){ probeCycles = 0; silentCycles = 0; recLang = myLang; }
+} else {
+silentCycles++;
+if (silentCycles >= 3){ silentCycles = 0; recLang = myLang === "zh" ? "vi" : "zh"; }
+}
+} else if (!cycleGotFinal && cycleError !== "aborted"){
+recLang = recLang === "zh" ? "vi" : "zh";
+} else if (cycleGotFinal){
+recLang = myLang;
+}
+scheduleRestart(cycleError === "no-speech" ? 200 : 350);
+};
+try {
+rec.start();
+setStatus(recLang === "zh" ? "Đang nghe… cứ nói tự nhiên · 正在听，直接说话即可" : "Đang nghe… cứ nói tự nhiên · 正在听，直接说话即可", false);
+} catch(e){
+recognition = null; recStarting = false;
+scheduleRestart(700);
+}
+}
+function scheduleRestart(ms){
+if (!listenOn) return;
+clearTimeout(restartTimer);
+restartTimer = setTimeout(startRecCycle, ms);
+}
+function restartRecognitionSoon(ms){
+clearTimeout(restartTimer);
+intentionalRestart = true;
+if (recognition){ try { recognition.abort(); } catch(e){} }
+else { intentionalRestart = false; scheduleRestart(ms || 200); }
+}
+function setListen(on){
+listenOn = on;
+setMicUI();
+if (on){
+recLang = myLang;
+startRecCycle();
+} else {
+clearTimeout(restartTimer);
+if (recognition){ try { recognition.abort(); } catch(e){} recognition = null; }
+hideLive();
+setStatus("", false);
+if (localStream) localStream.getAudioTracks().forEach(function(t){ t.enabled = false; });
+}
+if (on && localStream) localStream.getAudioTracks().forEach(function(t){ t.enabled = true; });
+}
+$("micBtn").addEventListener("click", function(){ setListen(!listenOn); });
+function renderSpeakerUI(){
+$("speakerBtn").classList.toggle("off", !autoSpeak);
+}
+$("speakerBtn").addEventListener("click", function(){
+autoSpeak = !autoSpeak;
+renderSpeakerUI();
+if (!autoSpeak && "speechSynthesis" in window){ try { window.speechSynthesis.cancel(); } catch(e){} }
+toast(autoSpeak ? "Đã bật đọc bản dịch · 已开语音播报" : "Đã tắt đọc bản dịch · 已关语音播报");
+});
+renderSpeakerUI();
+setMicUI();
+var sessionBegun = false;
+function beginSession(){
+if (sessionBegun) return;
+sessionBegun = true;
+initPeer(isHost ? hostId() : guestId());
+startListeningSession();
+}
+var flushIntStarted = false;
+function startListeningSession(){
+setListen(true);
+if (!flushIntStarted){ flushIntStarted = true; setInterval(flushPending, 1500); }
+}
+function showMediaError(){
+$("mediaErr").classList.remove("hidden");
+$("stageT1").textContent = "摄像头/麦克风被阻止了";
+$("stageT2").textContent = "Camera / mic đã bị chặn · 按屏幕上的说明重新打开";
+}
+function getMedia(){
+if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+showMediaError();
+return Promise.resolve(null);
+}
+var constraints = callMode === "voice"
+? { audio: true, video: false }
+: {
+video: {
+width: { ideal: 640, max: 640 },
+height: { ideal: 480, max: 480 },
+frameRate: { ideal: 20, max: 24 }
+},
+audio: true
+};
+return navigator.mediaDevices.getUserMedia(constraints)
+.then(function(stream){
+localStream = stream;
+localVideo.srcObject = stream;
+var vt = stream.getVideoTracks()[0];
+if (vt && vt.applyConstraints){
+vt.applyConstraints({ width: { ideal: 640, max: 640 }, height: { ideal: 480, max: 480 }, frameRate: { ideal: 20, max: 24 } }).catch(function(){});
+}
+if (!listenOn) stream.getAudioTracks().forEach(function(t){ t.enabled = false; });
+if (isHost){
+$("stageT1").textContent = "等待对方加入…";
+$("stageT2").textContent = "Đang chờ đối phương… Gửi liên kết mời bên dưới cho đối phương, họ mở ra là vào ngay.";
+} else {
+$("stageT1").textContent = "正在加入房间…";
+$("stageT2").textContent = "Đang vào phòng… chờ đối phương một chút.";
+}
+return stream;
+})
+.catch(function(){
+showMediaError();
+return null;
+});
+}
+$("mediaRetryBtn").addEventListener("click", function(){
+getMedia().then(function(stream){
+if (stream){
+$("mediaErr").classList.add("hidden");
+if (mediaResume){ var resumeFn = mediaResume; mediaResume = null; resumeFn(); }
+else beginSession();
+}
+});
+});
+function genCode(){
+var chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", s = "";
+for (var i = 0; i < 6; i++) s += chars.charAt(Math.floor(Math.random() * chars.length));
+return s;
+}
+function getParam(name){
+try { return new URLSearchParams(window.location.search).get(name); } catch(e){ return null; }
+}
+function hostId(){ return PREFIX + roomCode + "-h"; }
+function guestId(){ return PREFIX + roomCode + "-g"; }
+function wireConn(c){
+connAttempt = c; connAttemptAt = Date.now(); connAttemptDead = false;
+c.on("open", function(){
+var prev = conn;
+conn = c;
+if (prev && prev !== c){ try { prev.close(); } catch(e){} }
+remoteMsgs = {}; 
+setConn("on");
+recLang = myLang;
+if (listenOn) restartRecognitionSoon(60);
+$("inviteBar").classList.add("hidden");
+try { c.send({ type: "hello", lang: myLang, mode: callMode }); } catch(e){}
+flushPending();
+if (!isHost) startMediaCall();
+});
+c.on("data", function(data){
+if (!data || typeof data !== "object") return;
+if (data.type === "hello"){
+if (data.mode && data.mode !== callMode){ callMode = data.mode; applyCallModeUI(); }
+if (isHost && !mediaStarted && localStream) startHostCallBack();
+} else if (data.type === "msg"){
+receiveRemoteMsg(data);
+} else if (data.type === "trans"){
+receiveRemoteTrans(data);
+}
+});
+c.on("close", function(){
+if (connAttempt === c) connAttemptDead = true;
+if (conn === c) conn = null;
+setConn("wait");
+});
+c.on("error", function(){
+if (connAttempt === c) connAttemptDead = true;
+});
+}
+function limitSenderBitrate(call){
+try {
+var pc = call && call.peerConnection;
+if (!pc || !pc.getSenders) return;
+pc.getSenders().forEach(function(sender){
+if (!sender.track || sender.track.kind !== "video") return;
+try {
+var params = sender.getParameters() || {};
+if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+params.encodings[0].maxBitrate = 550000;
+params.encodings[0].maxFramerate = 20;
+var p = sender.setParameters(params);
+if (p && p.catch) p.catch(function(){});
+} catch(e){}
+});
+} catch(e){}
+}
+function wireCall(call){
+mediaCall = call;
+call.on("stream", function(remoteStream){
+remoteVideo.srcObject = remoteStream;
+$("stageNote").classList.add("hidden");
+setConn("on");
+limitSenderBitrate(call);
+setTimeout(function(){ limitSenderBitrate(call); }, 1200);
+});
+call.on("close", function(){
+remoteVideo.srcObject = null;
+if (callMode !== "voice") $("stageNote").classList.remove("hidden");
+$("stageT1").textContent = "对方已离开";
+$("stageT2").textContent = "Đối phương đã rời đi";
+});
+call.on("error", function(){});
+}
+function startMediaCall(){
+if (mediaStarted || !peer) return;
+mediaStarted = true;
+if (!localStream) return;
+try { var call = peer.call(hostId(), localStream); if (call) wireCall(call); } catch(e){}
+}
+function startHostCallBack(){
+if (mediaStarted || !peer) return;
+mediaStarted = true;
+try { var call = peer.call(guestId(), localStream); if (call) wireCall(call); } catch(e){}
+}
+var retryTimer = null, retryCount = 0;
+function tryGuestConnect(){
+if (!peer || peer.destroyed) return;
+if (conn && conn.open) return;
+if (connAttempt && !connAttemptDead && (Date.now() - connAttemptAt < 10000)){
+clearTimeout(retryTimer);
+retryTimer = setTimeout(tryGuestConnect, 3000);
+return;
+}
+if (connAttempt){ try { connAttempt.close(); } catch(e){} connAttempt = null; connAttemptDead = true; }
+var c;
+try { c = peer.connect(hostId(), { reliable: true }); } catch(e){ scheduleRetry(); return; }
+wireConn(c);
+setTimeout(function(){ if (!(conn && conn.open)) scheduleRetry(); }, 6000);
+}
+function scheduleRetry(){
+if (isHost || !peer || peer.destroyed) return;
+if (conn && conn.open) return;
+retryCount++;
+if (retryCount > 40){ setConn(""); return; }
+clearTimeout(retryTimer);
+retryTimer = setTimeout(tryGuestConnect, 3000);
+}
+function initPeer(myId){
+if (typeof Peer === "undefined"){ setConn(""); return; }
+peer = new Peer(myId, { debug: 0 });
+peer.on("open", function(){
+setConn("wait");
+if (!isHost) tryGuestConnect();
+});
+peer.on("connection", function(c){ if (isHost) wireConn(c); });
+peer.on("call", function(call){
+mediaStarted = true;
+if (localStream) call.answer(localStream); else call.answer();
+wireCall(call);
+});
+peer.on("error", function(err){
+var t = err && err.type ? err.type : "";
+if (t === "peer-unavailable" && !isHost) scheduleRetry();
+else if (t === "unavailable-id") setConn("");
+});
+peer.on("disconnected", function(){ try { peer.reconnect(); } catch(e){} });
+}
+function fallbackCopy(text){
+var ta = document.createElement("textarea");
+ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+document.body.appendChild(ta); ta.select();
+try { document.execCommand("copy"); } catch(e){}
+document.body.removeChild(ta);
+}
+function copyText(text, okMsg){
+if (navigator.clipboard && navigator.clipboard.writeText){
+navigator.clipboard.writeText(text).then(function(){ toast(okMsg); }, function(){ fallbackCopy(text); toast(okMsg); });
+} else { fallbackCopy(text); toast(okMsg); }
+}
+var PUBLISHED_BASE = "https://zhong-yue-tong-hua-fanyi.vercel.app/";
+function inviteLink(){
+return PUBLISHED_BASE + "?room=" + roomCode + "&peerlang=" + (myLang === "zh" ? "vi" : "zh") + "&mode=" + callMode;
+}
+function copyInviteLink(){
+if (!roomCode) return;
+copyText(inviteLink(), "已复制邀请链接，发给对方点开就能进来 · Đã sao chép liên kết mời");
+}
+function renderInviteQr(){
+var box = $("inviteQr"), cap = $("inviteQrCap");
+if (!box) return;
+box.innerHTML = "";
+if (!roomCode || typeof QRCode === "undefined"){
+box.style.display = "none"; if (cap) cap.style.display = "none"; return;
+}
+box.style.display = ""; if (cap) cap.style.display = "";
+try {
+new QRCode(box, {
+text: inviteLink(),
+width: 168,
+height: 168,
+correctLevel: QRCode.CorrectLevel.M
+});
+} catch(e){ box.style.display = "none"; if (cap) cap.style.display = "none"; }
+}
+$("copyLinkBtn").addEventListener("click", copyInviteLink);
+$("roomPill").addEventListener("click", function(){
+if (!roomCode) return;
+copyInviteLink();
+});
+var started = false;
+function startRoom(code, host, mode){
+if (started) return;
+started = true;
+sessionKind = "room";
+callMode = mode === "voice" ? "voice" : "video";
+callPeerName = "";
+returnFriend = null;
+roomCode = code; isHost = host;
+recLang = myLang;
+$("roomPillTxt").textContent = roomCode;
+$("inviteRoomCode").textContent = roomCode;
+$("lobby").classList.add("hidden");
+applyCallModeUI();
+if (isHost){ $("inviteBar").classList.remove("hidden"); renderInviteQr(); }
+try {
+var params = new URLSearchParams(window.location.search);
+params.set("room", roomCode);
+params.set("peerlang", myLang);
+params.set("mode", callMode);
+window.history.replaceState(null, "", window.location.pathname + "?" + params.toString());
+} catch(e){}
+setConn("wait");
+getMedia().then(function(stream){
+if (stream) beginSession();
+});
+}
+$("createBtn").addEventListener("click", function(){
+startRoom(genCode(), true);
+});
+$("joinBtn").addEventListener("click", function(){
+$("lobbyActions").classList.add("hidden");
+$("friendPanel").classList.add("hidden");
+$("joinPanel").classList.remove("hidden");
+$("joinErr").textContent = "";
+setTimeout(function(){ try { $("roomInput").focus(); } catch(e){} }, 60);
+});
+$("joinBackBtn").addEventListener("click", function(){
+$("joinPanel").classList.add("hidden");
+$("lobbyActions").classList.remove("hidden");
+});
+function cleanRoomInput(){
+return $("roomInput").value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+}
+$("roomInput").addEventListener("input", function(){
+var v = cleanRoomInput();
+if ($("roomInput").value !== v) $("roomInput").value = v;
+if (v.length === 6) $("joinErr").textContent = "";
+});
+function tryJoinFromInput(){
+var code = cleanRoomInput();
+if (code.length !== 6){
+$("joinErr").textContent = "房间号是 6 位，请检查 · Mã phòng gồm 6 ký tự";
+return;
+}
+startRoom(code, false, pendingBootMode);
+}
+$("joinGoBtn").addEventListener("click", tryJoinFromInput);
+$("roomInput").addEventListener("keydown", function(ev){
+if (ev.key === "Enter"){ ev.preventDefault(); tryJoinFromInput(); }
+});
+var urlRoom = getParam("room");
+var urlPeerLang = getParam("peerlang");
+var urlMode = getParam("mode");
+if (urlMode === "voice") pendingBootMode = "voice"; 
+if (urlPeerLang === "zh" || urlPeerLang === "vi"){
+myLang = urlPeerLang;
+recLang = myLang;
+renderLangPill();
+renderLobbyLang();
+}
+var bootCode = urlRoom ? urlRoom.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6) : "";
+if (bootCode.length === 6){
+$("roomInput").value = bootCode;
+$("lobbyActions").classList.add("hidden");
+$("joinPanel").classList.remove("hidden");
+}
+var USERNAME_KEY = "zhyuetong-my-username";
+var myUsername = "";
+try { myUsername = window.localStorage ? (window.localStorage.getItem(USERNAME_KEY) || "") : ""; } catch(e){}
+myUsername = String(myUsername || "").replace(/^\s+|\s+$/g, "");
+function userPeerId(u){ return "zhyuetong-user-" + encodeURIComponent(u); }
+function chatUserPeerId(u){ return "zhyuetong-chat-user-" + encodeURIComponent(u); }
+function userFromChatPeerId(pid){
+var p = "zhyuetong-chat-user-";
+if (pid && pid.indexOf(p) === 0){ try { return decodeURIComponent(pid.slice(p.length)); } catch(e){ return ""; } }
+return "";
+}
+var identityPeer = null, identityChatPeer = null;
+var regMode = "first", regAwaiting = false;
+var pendingInvite = null; 
+function renderMyUser(){
+var bar = $("myUserBar");
+if (!bar) return;
+if (myUsername){
+$("myUserName").textContent = myUsername;
+bar.classList.remove("hidden");
+} else {
+bar.classList.add("hidden");
+}
+}
+function showReg(mode, err){
+regMode = mode;
+$("regTitle").textContent = mode === "rename" ? "换个用户名" : "取个用户名就能用";
+$("regInput").value = mode === "rename" ? myUsername : "";
+$("regErr").textContent = err || "";
+$("regOverlay").classList.remove("hidden");
+setTimeout(function(){ try { $("regInput").focus(); } catch(e){} }, 60);
+}
+function destroyIdentity(){
+for (var u in chatConns){ try { chatConns[u].close(); } catch(e){} }
+chatConns = {};
+if (identityChatPeer){ try { identityChatPeer.destroy(); } catch(e){} identityChatPeer = null; }
+if (identityPeer){ try { identityPeer.destroy(); } catch(e){} identityPeer = null; }
+}
+function initIdentity(){
+if (typeof Peer === "undefined" || !myUsername) return;
+try { identityPeer = new Peer(userPeerId(myUsername), { debug: 0 }); } catch(e){ identityPeer = null; }
+if (identityPeer){
+identityPeer.on("open", function(){
+if (regAwaiting){
+regAwaiting = false;
+$("regOverlay").classList.add("hidden");
+renderMyUser();
+toast("用户名「" + myUsername + "」可以用了 · Tên người dùng đã sẵn sàng");
+}
+});
+identityPeer.on("error", function(err){
+var t = err && err.type ? err.type : "";
+if (t === "unavailable-id" && !started){
+regAwaiting = false;
+showReg(regMode, "这个用户名已被占用，换一个 · Tên người dùng này đã có người dùng, hãy chọn tên khác");
+}
+});
+identityPeer.on("connection", function(c){ handleIncomingCallConn(c); });
+identityPeer.on("call", function(call){ handleIncomingMediaCall(call); });
+identityPeer.on("disconnected", function(){ try { identityPeer.reconnect(); } catch(e){} });
+}
+try { identityChatPeer = new Peer(chatUserPeerId(myUsername), { debug: 0 }); } catch(e){ identityChatPeer = null; }
+if (identityChatPeer){
+identityChatPeer.on("connection", function(c){
+var user = userFromChatPeerId(c.peer);
+if (user) wireChatConn(user, c);
+});
+identityChatPeer.on("error", function(err){
+if (err && err.type === "peer-unavailable"){
+for (var u in chatFailHooks){ try { chatFailHooks[u](); } catch(e){} }
+if (chatFriend) setChatState("off");
+}
+});
+identityChatPeer.on("disconnected", function(){ try { identityChatPeer.reconnect(); } catch(e){} });
+}
+}
+function submitReg(){
+var name = $("regInput").value.replace(/^\s+|\s+$/g, "");
+if (!name){
+$("regErr").textContent = "先填一个用户名 · Hãy nhập một tên người dùng";
+return;
+}
+if (regMode === "rename" && name === myUsername){
+$("regOverlay").classList.add("hidden");
+return;
+}
+myUsername = name;
+try { if (window.localStorage) window.localStorage.setItem(USERNAME_KEY, name); } catch(e){}
+destroyIdentity();
+regAwaiting = true;
+$("regErr").textContent = "正在确认用户名… · Đang kiểm tra tên người dùng…";
+renderMyUser();
+initIdentity();
+}
+$("regBtn").addEventListener("click", submitReg);
+$("regInput").addEventListener("keydown", function(ev){
+if (ev.key === "Enter"){ ev.preventDefault(); submitReg(); }
+});
+$("myUserBar").addEventListener("click", function(){ showReg("rename", ""); });
+function handleIncomingCallConn(c){
+c.on("data", function(data){
+if (!data || typeof data !== "object") return;
+if (data.type === "call-invite"){
+if (started || pendingInvite){
+try { c.send({ type: "call-decline", busy: true }); } catch(e){}
+setTimeout(function(){ try { c.close(); } catch(e){} }, 400);
+return;
+}
+pendingInvite = { conn: c, from: String(data.from || ""), mode: data.mode === "voice" ? "voice" : "video" };
+$("incomingAvatar").textContent = (pendingInvite.from || "?").slice(0, 1);
+$("incomingText").textContent = pendingInvite.from + (pendingInvite.mode === "voice" ? " 邀请你语音通话" : " 邀请你视频通话");
+$("incomingSub").textContent = pendingInvite.mode === "voice" ? "Mời bạn gọi thoại" : "Mời bạn gọi video";
+$("incomingOverlay").classList.remove("hidden");
+} else if (data.type === "call-cancel"){
+if (pendingInvite && pendingInvite.conn === c){
+pendingInvite = null;
+$("incomingOverlay").classList.add("hidden");
+toast("对方已取消呼叫 · Đối phương đã hủy cuộc gọi");
+}
+}
+});
+c.on("close", function(){
+if (pendingInvite && pendingInvite.conn === c){
+pendingInvite = null;
+$("incomingOverlay").classList.add("hidden");
+}
+});
+}
+function handleIncomingMediaCall(call){
+if (sessionKind === "user" && started){
+mediaStarted = true;
+if (localStream){ call.answer(localStream); wireCall(call); }
+else pendingAnswerCall = call;
+} else {
+try { call.close(); } catch(e){}
+}
+}
+$("incomingDeclineBtn").addEventListener("click", function(){
+if (!pendingInvite) return;
+var c = pendingInvite.conn;
+pendingInvite = null;
+$("incomingOverlay").classList.add("hidden");
+try { c.send({ type: "call-decline" }); } catch(e){}
+setTimeout(function(){ try { c.close(); } catch(e){} }, 400);
+});
+$("incomingAcceptBtn").addEventListener("click", function(){
+var inv = pendingInvite;
+if (!inv) return;
+pendingInvite = null;
+$("incomingOverlay").classList.add("hidden");
+started = true;
+sessionKind = "user";
+callMode = inv.mode;
+callPeerName = inv.from;
+userCallTarget = inv.from;
+returnFriend = friendByUser(inv.from);
+$("lobby").classList.add("hidden");
+$("chatScreen").classList.add("hidden");
+$("roomPillTxt").textContent = inv.from;
+applyCallModeUI();
+setConn("wait");
+mediaResume = function(){ finishAcceptInvite(inv); };
+getMedia().then(function(stream){
+if (stream){ mediaResume = null; finishAcceptInvite(inv); }
+});
+});
+function finishAcceptInvite(inv){
+startListeningSession();
+wireUserConn(inv.conn, false);
+if (pendingAnswerCall){
+var pc = pendingAnswerCall; pendingAnswerCall = null;
+if (localStream){ pc.answer(localStream); wireCall(pc); }
+}
+try { inv.conn.send({ type: "call-accept", lang: myLang }); } catch(e){}
+}
+function wireUserConn(c, iAmCaller){
+function onOpen(){
+var prev = conn;
+conn = c;
+if (prev && prev !== c){ try { prev.close(); } catch(e){} }
+remoteMsgs = {};
+setConn("on");
+recLang = myLang;
+if (listenOn) restartRecognitionSoon(60);
+try { c.send({ type: "hello", lang: myLang, mode: callMode }); } catch(e){}
+flushPending();
+if (iAmCaller) placeUserMediaCall();
+}
+if (c.open) onOpen(); else c.on("open", onOpen);
+c.on("data", function(data){
+if (!data || typeof data !== "object") return;
+if (data.type === "msg") receiveRemoteMsg(data);
+else if (data.type === "trans") receiveRemoteTrans(data);
+else if (data.type === "hello" && data.mode && data.mode !== callMode){
+callMode = data.mode; applyCallModeUI();
+}
+});
+c.on("close", function(){
+if (conn === c) conn = null;
+setConn("wait");
+});
+c.on("error", function(){});
+}
+function placeUserMediaCall(){
+if (mediaStarted || !identityPeer || !localStream) return;
+mediaStarted = true;
+try {
+var call = identityPeer.call(userPeerId(userCallTarget), localStream);
+if (call) wireCall(call);
+} catch(e){}
+}
+function startUserCall(f, mode){
+if (!myUsername){ showReg("first", ""); return; }
+if (!identityPeer || identityPeer.destroyed) initIdentity();
+started = true;
+sessionKind = "user";
+callMode = mode === "voice" ? "voice" : "video";
+callPeerName = f.user;
+userCallTarget = f.user;
+returnFriend = f;
+hidePlusMenu();
+$("chatScreen").classList.add("hidden");
+$("lobby").classList.add("hidden");
+$("roomPillTxt").textContent = f.user;
+applyCallModeUI();
+setConn("wait");
+setStatus("正在呼叫 " + f.user + "… · Đang gọi " + f.user + "…", false);
+mediaResume = function(){ dialUserCall(f); };
+getMedia().then(function(stream){
+if (stream){ mediaResume = null; dialUserCall(f); }
+});
+}
+function dialUserCall(f){
+startListeningSession();
+if (!identityPeer || identityPeer.destroyed){
+toast("连接失败，请重试 · Kết nối thất bại, hãy thử lại");
+hangupCore();
+return;
+}
+var c;
+try { c = identityPeer.connect(userPeerId(f.user), { reliable: true }); }
+catch(e){ hangupCore(); return; }
+userCallConn = c;
+var answered = false;
+c.on("open", function(){
+try { c.send({ type: "call-invite", from: myUsername, mode: callMode, lang: myLang }); } catch(e){}
+});
+c.on("data", function(data){
+if (!data || typeof data !== "object") return;
+if (data.type === "call-accept"){
+if (answered) return;
+answered = true;
+clearTimeout(userCallTimer);
+setStatus("", false);
+wireUserConn(c, true);
+} else if (data.type === "call-decline"){
+clearTimeout(userCallTimer);
+toast(data.busy ? "对方忙线中 · Đối phương đang bận" : "对方已拒绝 · Đối phương đã từ chối");
+hangupCore();
+}
+});
+c.on("error", function(){});
+clearTimeout(userCallTimer);
+userCallTimer = setTimeout(function(){
+if (answered) return;
+toast("对方未接听（对方要打开 App 才能接）· Đối phương không nghe máy");
+try { c.send({ type: "call-cancel" }); } catch(e){}
+hangupCore();
+}, 45000);
+}
+renderMyUser();
+if (myUsername) initIdentity();
+else showReg("first", "");
+var FRIENDS_KEY = "zhyuetong-friends-v1";
+function loadFriends(){
+try {
+var raw = window.localStorage ? window.localStorage.getItem(FRIENDS_KEY) : null;
+var arr = raw ? JSON.parse(raw) : [];
+if (!arr || Object.prototype.toString.call(arr) !== "[object Array]") return [];
+var out = [];
+for (var i = 0; i < arr.length; i++){
+var f = arr[i];
+if (!f || !f.user) continue;
+var u = String(f.user);
+out.push({ name: u, user: u });
+}
+return out;
+} catch(e){ return []; }
+}
+function persistFriends(){
+try {
+if (window.localStorage) window.localStorage.setItem(FRIENDS_KEY, JSON.stringify(friends));
+} catch(e){}
+}
+var friends = loadFriends();
+var chatUnread = {}; 
+function fmtListTime(ts){
+if (!ts) return "";
+try {
+var d = new Date(ts), now = new Date();
+if (d.toDateString() === now.toDateString()) return fmtTime(ts);
+return (d.getMonth() + 1) + "/" + d.getDate();
+} catch(e){ return ""; }
+}
+function renderFriends(){
+var list = $("friendList");
+if (!list) return;
+list.innerHTML = "";
+$("friendEmpty").style.display = friends.length ? "none" : "";
+friends.forEach(function(f, idx){
+var row = document.createElement("div");
+row.className = "friend-row";
+row.setAttribute("role", "button");
+row.setAttribute("tabindex", "0");
+var av = document.createElement("div");
+av.className = "friend-avatar";
+av.textContent = (f.name || "?").slice(0, 1);
+var main = document.createElement("div");
+main.className = "friend-main";
+var nm = document.createElement("div");
+nm.className = "friend-name"; nm.textContent = f.name;
+var hist = loadChatHistory(histKey(f.user));
+var last = hist.length ? hist[hist.length - 1] : null;
+var sub = document.createElement("div");
+sub.className = "friend-sub";
+sub.textContent = last ? ((last.dir === "me" ? "我：" : "") + (last.orig || "")) : "点开聊天 · Bấm để nhắn tin";
+main.appendChild(nm); main.appendChild(sub);
+row.appendChild(av); row.appendChild(main);
+var unread = chatUnread[f.user] || 0;
+if (unread > 0){
+var ub = document.createElement("div");
+ub.className = "friend-unread";
+ub.textContent = unread > 99 ? "99+" : String(unread);
+row.appendChild(ub);
+}
+if (last){
+var tm = document.createElement("div");
+tm.className = "friend-time"; tm.textContent = fmtListTime(last.ts);
+row.appendChild(tm);
+}
+var delBtn = document.createElement("button");
+delBtn.className = "friend-act del"; delBtn.type = "button";
+delBtn.title = "删除好友 · Xóa bạn bè";
+delBtn.setAttribute("aria-label", "删除好友 · Xóa bạn bè");
+delBtn.textContent = "✕";
+delBtn.addEventListener("click", function(ev){
+ev.stopPropagation();
+closeChatConn(f.user);
+delete chatUnread[f.user];
+friends.splice(idx, 1);
+persistFriends();
+renderFriends();
+toast("已删除好友 · Đã xóa bạn bè");
+});
+row.appendChild(delBtn);
+function open(){ openChat(f); }
+row.addEventListener("click", open);
+row.addEventListener("keydown", function(ev){
+if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); open(); }
+});
+list.appendChild(row);
+});
+}
+renderFriends();
+$("addFriendBtn").addEventListener("click", function(){
+$("lobbyActions").classList.add("hidden");
+$("joinPanel").classList.add("hidden");
+$("friendPanel").classList.remove("hidden");
+$("friendErr").textContent = "";
+$("friendUserInput").value = "";
+setTimeout(function(){ try { $("friendUserInput").focus(); } catch(e){} }, 60);
+});
+$("friendBackBtn").addEventListener("click", function(){
+$("friendPanel").classList.add("hidden");
+$("lobbyActions").classList.remove("hidden");
+});
+$("friendSaveBtn").addEventListener("click", function(){
+var user = $("friendUserInput").value.replace(/^\s+|\s+$/g, "");
+if (!user){
+$("friendErr").textContent = "先填对方的用户名 · Hãy nhập tên người dùng của đối phương";
+return;
+}
+if (myUsername && user === myUsername){
+$("friendErr").textContent = "这是你自己的用户名，填对方的 · Đây là tên của chính bạn, hãy nhập tên đối phương";
+return;
+}
+var existing = -1;
+for (var i = 0; i < friends.length; i++){ if (friends[i].user === user){ existing = i; break; } }
+if (existing < 0) friends.push({ name: user, user: user });
+persistFriends();
+renderFriends();
+$("friendPanel").classList.add("hidden");
+$("lobbyActions").classList.remove("hidden");
+toast("已添加好友 " + user + " · Đã thêm bạn bè");
+});
+function hidePlusMenu(){
+$("chatPlusMenu").classList.add("hidden");
+$("chatPlusBtn").classList.remove("open");
+}
+$("chatPlusBtn").addEventListener("click", function(ev){
+ev.stopPropagation();
+var nowHidden = $("chatPlusMenu").classList.toggle("hidden");
+$("chatPlusBtn").classList.toggle("open", !nowHidden);
+});
+$("chatMessages").addEventListener("click", function(){ hidePlusMenu(); });
+$("plusVideoBtn").addEventListener("click", function(){
+if (chatFriend) startUserCall(chatFriend, "video");
+});
+$("plusVoiceBtn").addEventListener("click", function(){
+if (chatFriend) startUserCall(chatFriend, "voice");
+});
+var CHAT_HIST_PREFIX = "zhyuetong-chat-hist-v1-";
+var chatConns = {};      
+var chatConnecting = {}; 
+var chatFailHooks = {};  
+var chatFriend = null;   
+function histKey(user){ return encodeURIComponent(user || ""); }
+function friendByUser(user){
+for (var i = 0; i < friends.length; i++){ if (friends[i].user === user) return friends[i]; }
+return null;
+}
+function loadChatHistory(code){
+try {
+var raw = window.localStorage ? window.localStorage.getItem(CHAT_HIST_PREFIX + code) : null;
+var arr = raw ? JSON.parse(raw) : [];
+return Object.prototype.toString.call(arr) === "[object Array]" ? arr : [];
+} catch(e){ return []; }
+}
+function appendChatHistory(code, entry){
+try {
+var arr = loadChatHistory(code);
+arr.push(entry);
+if (arr.length > 300) arr = arr.slice(arr.length - 300);
+if (window.localStorage) window.localStorage.setItem(CHAT_HIST_PREFIX + code, JSON.stringify(arr));
+} catch(e){}
+}
+function setChatState(mode){
+var el = $("chatState");
+if (!el) return;
+var dot = mode === "on" ? "on" : mode === "wait" ? "wait" : "";
+var txt = mode === "on" ? "对方在线 · Đối phương đang trực tuyến"
+: mode === "off" ? "对方不在线 · Đối phương không trực tuyến（没打开 App）"
+: "正在连接… · Đang kết nối…";
+el.innerHTML = "";
+var d = document.createElement("span"); d.className = "dot " + dot;
+el.appendChild(d); el.appendChild(document.createTextNode(txt));
+}
+function fmtTime(ts){
+try {
+var d = new Date(ts || Date.now());
+var h = d.getHours(), m = d.getMinutes();
+return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+} catch(e){ return ""; }
+}
+function appendChatMsgEl(entry){
+var box = $("chatMessages");
+var empty = box.querySelector(".chat-empty");
+if (empty) empty.parentNode.removeChild(empty);
+var div = document.createElement("div");
+div.className = "chat-msg " + (entry.dir === "me" ? "me" : "peer");
+var o = document.createElement("div");
+o.className = "orig"; o.textContent = entry.orig || "";
+var t = document.createElement("div");
+t.className = "trans" + (entry.pending ? " pending-txt" : "");
+t.textContent = entry.pending ? "Đang dịch… / 正在翻译…"
+: entry.trans ? entry.trans
+: entry.transFail ? "Dịch thất bại · 翻译失败（上面是原话）" : "";
+var meta = document.createElement("div");
+meta.className = "meta" + (entry.failed ? " fail" : "");
+meta.textContent = fmtTime(entry.ts) + (entry.failed ? " · 对方不在线，未送达 · Không gửi được" : "");
+div.appendChild(o); div.appendChild(t); div.appendChild(meta);
+box.appendChild(div);
+box.scrollTop = box.scrollHeight;
+return { root: div, transEl: t, metaEl: meta };
+}
+function renderChatHistory(){
+var box = $("chatMessages");
+box.innerHTML = "";
+if (!chatFriend) return;
+var arr = loadChatHistory(histKey(chatFriend.user));
+if (!arr.length){
+var e = document.createElement("div");
+e.className = "chat-empty";
+e.textContent = "还没有消息。打中文发过去，对方看到的是中文原文 + 越南文翻译；对方回越南文，你这边看到原文 + 中文翻译。对方要打开 App 才能收到。";
+box.appendChild(e);
+return;
+}
+arr.forEach(function(entry){ appendChatMsgEl(entry); });
+box.scrollTop = box.scrollHeight;
+}
+function markChatOffline(f){
+var fail = chatFailHooks[f.user];
+if (fail) fail();
+if (chatFriend && chatFriend.user === f.user) setChatState("off");
+}
+function wireChatConn(user, c){
+c.on("open", function(){
+var prev = chatConns[user];
+chatConns[user] = c;
+if (prev && prev !== c){ try { prev.close(); } catch(e){} }
+if (chatFriend && chatFriend.user === user) setChatState("on");
+});
+c.on("data", function(data){
+if (data && data.type === "chat-msg") receiveChatMsg(user, data);
+});
+c.on("close", function(){
+if (chatConns[user] === c) delete chatConns[user];
+if (chatFriend && chatFriend.user === user) setChatState("wait");
+});
+c.on("error", function(){});
+}
+function closeChatConn(user){
+var c = chatConns[user];
+if (c){ try { c.close(); } catch(e){} delete chatConns[user]; }
+}
+function connectChat(f){
+var user = f.user;
+if (chatConns[user] && chatConns[user].open) return Promise.resolve(chatConns[user]);
+if (chatConnecting[user]) return chatConnecting[user];
+if (!identityChatPeer || identityChatPeer.destroyed) return Promise.resolve(null);
+chatConnecting[user] = new Promise(function(resolve){
+var done = false;
+function finish(v){
+if (done) return; done = true;
+delete chatConnecting[user]; delete chatFailHooks[user];
+resolve(v);
+}
+chatFailHooks[user] = function(){ finish(null); };
+var c;
+try { c = identityChatPeer.connect(chatUserPeerId(user), { reliable: true }); }
+catch(e){ finish(null); return; }
+wireChatConn(user, c);
+c.on("open", function(){ finish(c); });
+setTimeout(function(){ finish(chatConns[user] && chatConns[user].open ? chatConns[user] : null); }, 7000);
+});
+return chatConnecting[user];
+}
+function receiveChatMsg(user, data){
+var f = friendByUser(user) || { name: user, user: user };
+var from = data.from === "vi" ? "vi" : "zh";
+var entry = {
+dir: "peer", orig: data.orig || "", trans: data.trans || "",
+from: from, ts: data.ts || Date.now(), id: data.id, sess: data.sess || ""
+};
+var hist = loadChatHistory(histKey(user));
+for (var i = 0; i < hist.length; i++){
+if (hist[i].id === entry.id && hist[i].sess === entry.sess && entry.id !== undefined) return; 
+}
+function store(){
+appendChatHistory(histKey(user), entry);
+if (chatFriend && chatFriend.user === user){
+appendChatMsgEl(entry);
+setChatState("on");
+} else {
+chatUnread[user] = (chatUnread[user] || 0) + 1;
+renderFriends();
+toast("💬 " + f.name + "：" + (entry.orig || "").slice(0, 20));
+}
+}
+if (entry.trans){ store(); return; }
+translateText(entry.orig, from, from === "zh" ? "vi" : "zh")
+.then(function(trans){ entry.trans = trans; store(); })
+.catch(function(){ entry.transFail = true; store(); });
+}
+function openChat(f){
+chatFriend = f;
+delete chatUnread[f.user]; 
+renderFriends();
+hidePlusMenu();
+$("lobby").classList.add("hidden");
+$("chatScreen").classList.remove("hidden");
+$("chatFriendName").textContent = f.name;
+$("chatAvatar").textContent = (f.name || "?").slice(0, 1);
+setChatState(chatConns[f.user] && chatConns[f.user].open ? "on" : "wait");
+renderChatHistory();
+connectChat(f);
+setTimeout(function(){ try { $("chatInput").focus(); } catch(e){} }, 80);
+}
+$("chatBackBtn").addEventListener("click", function(){
+chatFriend = null;
+hidePlusMenu();
+$("chatScreen").classList.add("hidden");
+$("lobby").classList.remove("hidden");
+renderFriends(); 
+});
+var chatSending = false;
+function sendChat(){
+if (!chatFriend || chatSending) return;
+var input = $("chatInput");
+var text = input.value.replace(/^\s+|\s+$/g, "");
+if (!text) return;
+var f = chatFriend;
+chatSending = true;
+$("chatSendBtn").disabled = true;
+input.value = "";
+input.style.height = "auto";
+var from = myLang, to = from === "zh" ? "vi" : "zh";
+var entry = {
+dir: "me", orig: text, trans: "", from: from,
+ts: Date.now(), id: ++msgSeq, sess: mySess, pending: true
+};
+var els = appendChatMsgEl(entry);
+function deliver(trans){
+connectChat(f).then(function(c){
+var ok = false;
+if (c && c.open){
+try {
+c.send({ type: "chat-msg", sess: entry.sess, id: entry.id, from: from, orig: text, trans: trans || "", ts: entry.ts });
+ok = true;
+} catch(e){}
+}
+entry.failed = !ok;
+appendChatHistory(histKey(f.user), {
+dir: "me", orig: entry.orig, trans: entry.trans, from: entry.from,
+ts: entry.ts, id: entry.id, sess: entry.sess, failed: entry.failed
+});
+if (!ok){
+els.metaEl.className = "meta fail";
+els.metaEl.textContent = fmtTime(entry.ts) + " · 对方不在线，未送达 · Không gửi được";
+if (chatFriend && chatFriend.user === f.user) setChatState("off");
+toast("对方不在线 · Đối phương không trực tuyến");
+}
+chatSending = false;
+$("chatSendBtn").disabled = false;
+});
+}
+translateText(text, from, to)
+.then(function(trans){
+entry.trans = trans; entry.pending = false;
+els.transEl.classList.remove("pending-txt");
+els.transEl.textContent = trans;
+deliver(trans);
+})
+.catch(function(){
+entry.pending = false; entry.transFail = true;
+els.transEl.classList.remove("pending-txt");
+els.transEl.textContent = "Dịch thất bại · 翻译失败（只发原文，对方那边会再翻译）";
+deliver("");
+});
+}
+$("chatSendBtn").addEventListener("click", sendChat);
+$("chatInput").addEventListener("keydown", function(ev){
+if (ev.key === "Enter" && !ev.shiftKey){ ev.preventDefault(); sendChat(); }
+});
+$("chatInput").addEventListener("input", function(){
+var el = $("chatInput");
+el.style.height = "auto";
+el.style.height = Math.min(el.scrollHeight, 110) + "px";
+});
+function hangupCore(){
+setListen(false);
+$("inviteBar").classList.add("hidden");
+if ("speechSynthesis" in window){ try { window.speechSynthesis.cancel(); } catch(e){} }
+clearTimeout(retryTimer); clearTimeout(restartTimer);
+try { if (conn) conn.close(); } catch(e){}
+try { if (connAttempt && connAttempt !== conn) connAttempt.close(); } catch(e){}
+try { if (mediaCall) mediaCall.close(); } catch(e){}
+if (sessionKind !== "user"){ try { if (peer) peer.destroy(); } catch(e){} peer = null; }
+conn = null; connAttempt = null; pendingOut = []; remoteMsgs = {}; mediaCall = null;
+if (localStream){
+localStream.getTracks().forEach(function(t){ t.stop(); });
+localStream = null;
+}
+localVideo.srcObject = null; remoteVideo.srcObject = null;
+try {
+window.history.replaceState(null, "", window.location.pathname + "?peerlang=" + myLang);
+} catch(e){}
+var backF = returnFriend; returnFriend = null;
+started = false; sessionKind = null; sessionBegun = false; mediaStarted = false;
+stopVoiceTimer();
+callMode = "video"; applyCallModeUI();
+clearTimeout(userCallTimer); userCallTimer = null;
+if (userCallConn){ try { userCallConn.close(); } catch(e){} userCallConn = null; }
+mediaResume = null;
+pendingInvite = null;
+$("incomingOverlay").classList.add("hidden");
+setStatus("", false);
+if (backF){
+openChat(backF); 
+} else {
+$("endedOverlay").classList.remove("hidden");
+}
+}
+$("hangupBtn").addEventListener("click", function(){ hangupCore(); });
+$("restartBtn").addEventListener("click", function(){
+try { window.location.replace(window.location.pathname + "?peerlang=" + myLang); }
+catch(e){ window.location.reload(); }
+});
+window.addEventListener("beforeunload", function(){
+try { if (peer) peer.destroy(); } catch(e){}
+});
+})();
+</script>
+</body>
 </html>
