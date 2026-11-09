@@ -1,0 +1,77 @@
+name: Build unsigned IPA
+
+# 在云端 Mac 上把本工程编成未签名 .ipa（不签名，供 Ha 自己用证书签）。
+# 触发：手动（Actions 页点 Run workflow），或推到 main 分支时自动编。
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build-ipa:
+    runs-on: macos-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 还原图标文件（仓库里图标只存了 base64 文本，连接器推不上去二进制）
+        run: |
+          python3 - <<'EOF'
+          import base64, os
+          # AppIcon 的 base64 太大（147KB），分两段存在仓库里，这里先拼起来再解码
+          appicon_b64 = open("tools/icons/AppIcon-512@2x.png.b64.1").read() + open("tools/icons/AppIcon-512@2x.png.b64.2").read()
+          open("tools/icons/AppIcon-512@2x.png.b64", "w").write(appicon_b64)
+          pairs = [
+              ("tools/icons/AppIcon-512@2x.png.b64", "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"),
+              ("tools/icons/splash-2732x2732.png.b64", "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png"),
+              ("tools/icons/splash-2732x2732-1.png.b64", "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png"),
+              ("tools/icons/splash-2732x2732-2.png.b64", "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png"),
+          ]
+          for src, dst in pairs:
+              data = base64.b64decode(open(src).read())
+              os.makedirs(os.path.dirname(dst), exist_ok=True)
+              open(dst, "wb").write(data)
+              print("restored", dst, len(data), "bytes")
+          EOF
+
+      - name: 装 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: 装依赖
+        run: npm ci
+
+      - name: 校验语音识别适配层
+        run: node test-adapter.js
+
+      - name: 同步 Capacitor iOS 工程
+        run: npx cap sync ios
+
+      - name: 装 CocoaPods 依赖
+        run: cd ios/App && pod install
+
+      - name: 编译（不签名）
+        run: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            -derivedDataPath build
+
+      - name: 打成未签名 .ipa
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r zhong-yue-tong-hua-fanyi-unsigned.ipa Payload
+          ls -lh zhong-yue-tong-hua-fanyi-unsigned.ipa
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhong-yue-tong-hua-fanyi-unsigned-ipa
+          path: zhong-yue-tong-hua-fanyi-unsigned.ipa
+          if-no-files-found: error
